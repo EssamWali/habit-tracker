@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dev-dist/
+.vercel/
+*.local
+.DS_Store
+# build artifacts
+*.tsbuildinfo
+supabase/.temp/
+.vercel
+
+.env
+.env.*
+.env*
+
+# committed on purpose: documents required vars, holds no secrets
+!.env.example
