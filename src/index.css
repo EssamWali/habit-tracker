@@ -321,11 +321,18 @@ body {
    to be actionable. */
 .hcell--today-off { outline: 1.5px dashed var(--line); outline-offset: 1.5px; }
 
-.reorder { display: flex; gap: 2px; flex: none; }
-.reorder button {
+/* The drag handle. touch-action: none stops the browser claiming the gesture
+   as a scroll before the pointer handlers see it — without it, dragging on a
+   phone just scrolls the page. */
+.grip {
+  flex: none; touch-action: none; cursor: grab;
   border: 1px solid var(--line); background: transparent; color: var(--muted);
-  border-radius: 5px; width: 24px; height: 24px; line-height: 1;
-  font: inherit; font-size: 0.75rem; cursor: pointer; padding: 0;
+  border-radius: 6px; width: 28px; height: 28px; line-height: 1;
+  font: inherit; font-size: 0.875rem; padding: 0;
 }
-.reorder button:disabled { opacity: 0.35; cursor: default; }
-.reorder button:hover:not(:disabled) { color: var(--fg); }
+.grip:active { cursor: grabbing; }
+.grip:hover { color: var(--fg); }
+.grip:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+.habits li.is-dragging { opacity: 0.55; }
+.habits li.is-dragging .grip { cursor: grabbing; }

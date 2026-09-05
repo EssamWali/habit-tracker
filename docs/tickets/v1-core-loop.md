@@ -158,7 +158,11 @@ history, and stops affecting the Aggregate denominator from its archive date.
 
 Drag to reorder, writing `sort_order`. Flat list, no grouping (Q20).
 
-**Result:** up/down buttons rather than drag. Each habit row contains a horizontally-scrolling heatmap, so a touch drag beginning anywhere useful is ambiguous between reordering, scrolling the page, and scrolling the heatmap. Buttons avoid the ambiguity and are keyboard-operable without extra work.
+**Result:** drag from a dedicated handle. The handle is what resolves the ambiguity that made a naive drag unworkable — each row contains a horizontally-scrolling heatmap, so a drag starting anywhere else could mean reorder, page scroll, or heatmap scroll. `touch-action: none` on the grip stops the browser claiming the gesture as a scroll before the pointer handlers see it.
+
+The same handle is focusable and responds to arrow keys, so reordering is not a mouse-only capability and no second control is needed.
+
+Ordering is previewed locally during the drag and persisted once on release, so a drag costs one write rather than one per crossed row.
 
 Positions are rewritten sequentially rather than swapping two rows, so `sort_order` stays a dense `0..n-1` sequence and cannot drift into ties.
 

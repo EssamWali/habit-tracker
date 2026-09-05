@@ -203,3 +203,18 @@ export async function moveHabit(habits: readonly Habit[], id: string, delta: -1 
     }
   })
 }
+
+/** Persist an explicit ordering. Positions are dense 0..n-1 by construction. */
+export async function setHabitOrder(habits: readonly Habit[], orderedIds: readonly string[]): Promise<void> {
+  const byId = new Map(habits.map(h => [h.id, h]))
+  await db.transaction('rw', [db.habits, db.outbox], async () => {
+    const stamp = nowStamp()
+    for (let i = 0; i < orderedIds.length; i++) {
+      const habit = byId.get(orderedIds[i]!)
+      if (!habit || habit.sort_order === i) continue
+      const row: Habit = { ...habit, sort_order: i, updated_at: stamp }
+      await db.habits.put(row)
+      await db.outbox.put({ table: 'habits', key: row.id, payload: row, created_at: stamp })
+    }
+  })
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { today as todayFn } from './lib/day'
-import { createHabit, moveHabit, toggleDay } from './lib/store'
+import { createHabit, toggleDay } from './lib/store'
+import { useDragOrder } from './useDragOrder'
 import { useEntriesByHabit, useHabits, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
 import { useTheme } from './lib/theme'
@@ -42,6 +43,7 @@ export default function HabitList({ userId }: { userId: string }) {
   const pending = useOutboxDepth()
   const { status, syncNow } = useSync(userId)
   const { resolved } = useTheme()
+  const drag = useDragOrder(habits)
   const [name, setName] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [picked, setPicked] = useState<{ habitId: string; day: string } | null>(null)
@@ -93,11 +95,16 @@ export default function HabitList({ userId }: { userId: string }) {
       )}
 
       <ul className="habits">
-        {habits.map((h, i) => {
+        {drag.ordered.map(h => {
           const entries = entriesByHabit.get(h.id) ?? new Map<string, EntryKind>()
           const open = editing === h.id
           return (
-            <li key={h.id} style={{ '--habit-hue': hueValue(h.colour, resolved) } as React.CSSProperties}>
+            <li
+              key={h.id}
+              ref={el => drag.register(h.id, el)}
+              className={drag.dragId === h.id ? 'is-dragging' : undefined}
+              style={{ '--habit-hue': hueValue(h.colour, resolved) } as React.CSSProperties}
+            >
               <div className="habit-head">
                 <i className="habit-swatch" aria-hidden="true" />
                 <button
@@ -109,18 +116,18 @@ export default function HabitList({ userId }: { userId: string }) {
                   <span className="cadence">{cadenceSummary(h, schedules, day)}</span>
                 </button>
                 {h.archived_at && <span className="badge">archived</span>}
-                <div className="reorder">
-                  <button
-                    aria-label={`Move ${h.name} up`}
-                    disabled={i === 0}
-                    onClick={() => moveHabit(habits, h.id, -1)}
-                  >↑</button>
-                  <button
-                    aria-label={`Move ${h.name} down`}
-                    disabled={i === habits.length - 1}
-                    onClick={() => moveHabit(habits, h.id, 1)}
-                  >↓</button>
-                </div>
+                <button
+                  className="grip"
+                  aria-label={`Reorder ${h.name}. Drag, or use the arrow keys.`}
+                  onPointerDown={e => drag.start(e, h.id)}
+                  onPointerMove={drag.move}
+                  onPointerUp={drag.end}
+                  onPointerCancel={drag.end}
+                  onKeyDown={e => {
+                    if (e.key === 'ArrowUp') { e.preventDefault(); drag.nudge(h.id, -1) }
+                    if (e.key === 'ArrowDown') { e.preventDefault(); drag.nudge(h.id, 1) }
+                  }}
+                >⠿</button>
               </div>
 
               <Heatmap
