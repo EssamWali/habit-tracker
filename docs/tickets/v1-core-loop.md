@@ -122,10 +122,16 @@ It follows the same Month / Quarter / Year toggle as the habit heatmaps rather t
 **Done when:** it reads correctly on a day mixing a completed Unskippable habit
 with a missed Minor one — the weighting must be visible, not merely implemented.
 
-## V1-8 · Backfill
+## V1-8 · Backfill ✅
 
 Tapping any past Cell opens a day detail with a completion toggle. Unlimited
 backfill (Q14): no lookback window, no flag marking backfilled entries.
+
+**Result:** tapping any in-range past Cell opens a day-detail sheet naming the date, the habit and the current state, with a single toggle. Escape and a backdrop tap close it; focus moves to the action on open.
+
+Today keeps its one-tap toggle. The inconsistency is deliberate and justified by frequency: today is touched daily and is the only Cell outlined and padded enough to hit deliberately, whereas writing history from a 10px square would let a mis-tap silently rewrite the past.
+
+Past Cells are buttons but held out of the tab order; V1-11 adds roving arrow-key navigation rather than leaving 365 tab stops per habit.
 
 **Done when:** a past day can be corrected on a phone without mis-taps — which
 means the target is the detail sheet, not a 10px square.

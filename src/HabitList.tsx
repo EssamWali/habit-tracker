@@ -5,11 +5,12 @@ import { useEntriesByHabit, useHabits, useOutboxDepth, useSchedules } from './li
 import { useSync } from './lib/useSync'
 import { useTheme } from './lib/theme'
 import { hueValue } from './lib/palette'
-import { OUT_OF_RANGE, resolveSchedule } from './lib/rules'
+import { OUT_OF_RANGE, cellState, resolveSchedule } from './lib/rules'
 import type { EntryKind, Habit, HabitSchedule } from './lib/types'
 import Heatmap, { type Range } from './Heatmap'
 import HabitEditor from './HabitEditor'
 import AggregateHeatmap from './AggregateHeatmap'
+import DayDetail from './DayDetail'
 
 function syncLabel(status: ReturnType<typeof useSync>['status']): string {
   switch (status.state) {
@@ -42,6 +43,7 @@ export default function HabitList({ userId }: { userId: string }) {
   const { resolved } = useTheme()
   const [name, setName] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
+  const [picked, setPicked] = useState<{ habitId: string; day: string } | null>(null)
   const [range, setRange] = useState<Range>(() => {
     try { const v = localStorage.getItem('range'); if (v === 'month' || v === 'quarter' || v === 'year') return v } catch { /* blocked */ }
     return 'month'
@@ -115,6 +117,7 @@ export default function HabitList({ userId }: { userId: string }) {
                 today={day}
                 range={range}
                 onToggle={d => toggleDay(userId, h.id, d)}
+                onSelect={d => setPicked({ habitId: h.id, day: d })}
               />
 
               {open && (
@@ -140,6 +143,23 @@ export default function HabitList({ userId }: { userId: string }) {
         />
         <button className="btn" type="submit" disabled={!name.trim()}>Add</button>
       </form>
+
+      {picked && (() => {
+        const h = habits.find(x => x.id === picked.habitId)
+        if (!h) return null
+        const entries = entriesByHabit.get(h.id) ?? new Map<string, EntryKind>()
+        const completed = new Set<string>()
+        for (const [d, k] of entries) if (k === 'completed') completed.add(d)
+        return (
+          <DayDetail
+            habit={h}
+            day={picked.day}
+            state={cellState(h, schedules, picked.day, day, entries, completed)}
+            onToggle={() => toggleDay(userId, h.id, picked.day)}
+            onClose={() => setPicked(null)}
+          />
+        )
+      })()}
 
       <p className={status.state === 'error' ? 'error' : 'muted note'}>
         {syncLabel(status)}

@@ -9,7 +9,7 @@ export type Range = 'month' | 'quarter' | 'year'
 export const RANGE_DAYS: Record<Range, number> = { month: 35, quarter: 91, year: 365 }
 
 export default function Heatmap({
-  habit, schedules, entries, today, range, onToggle,
+  habit, schedules, entries, today, range, onToggle, onSelect,
 }: {
   habit: Habit
   schedules: readonly HabitSchedule[]
@@ -17,6 +17,7 @@ export default function Heatmap({
   today: Day
   range: Range
   onToggle: (day: Day) => void
+  onSelect: (day: Day) => void
 }) {
   const scroller = useRef<HTMLDivElement>(null)
   // Month is a calendar month so the grid fills in as the month progresses;
@@ -69,6 +70,10 @@ export default function Heatmap({
 
               const title = state === 'out_of_range' ? day : `${day} — ${describe(state, gilded)}`
 
+              // Today toggles in one tap: it is touched daily and is the one
+              // Cell outlined and padded enough to hit deliberately. Every
+              // other Cell opens the detail sheet instead — a 10px square is
+              // far too small to write history from.
               if (day === today) {
                 return (
                   <button
@@ -79,7 +84,19 @@ export default function Heatmap({
                   />
                 )
               }
-              return <i key={day} className={cls} title={title} />
+
+              if (state === 'out_of_range') return <i key={day} className={cls} title={title} />
+
+              return (
+                <button
+                  key={day}
+                  className={`${cls} hcell--pick`}
+                  title={title}
+                  tabIndex={-1}
+                  onClick={() => onSelect(day)}
+                  aria-label={`${habit.name}, ${day}: ${describe(state, gilded)}`}
+                />
+              )
             })}
           </div>
         </div>
