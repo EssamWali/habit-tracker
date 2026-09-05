@@ -28,6 +28,19 @@
   --agg-3: #6e7781;
   --agg-4: #24292f;
 
+  --hue-emerald: #059669;
+  --hue-green: #16a34a;
+  --hue-lime: #65a30d;
+  --hue-teal: #0d9488;
+  --hue-cyan: #0891b2;
+  --hue-blue: #2563eb;
+  --hue-indigo: #4f46e5;
+  --hue-purple: #7c3aed;
+  --hue-magenta: #c026d3;
+  --hue-rose: #e11d48;
+  --hue-red: #dc2626;
+  --hue-orange: #ea580c;
+
   --cell: 10px;
   --cell-gap: 3px;
   --cell-step: 13px;
@@ -188,3 +201,31 @@ body {
    a pseudo-element widens the hit area without disturbing the grid. */
 .hcell--today { position: relative; padding: 0; border: 0; outline: 1.5px solid var(--fg); outline-offset: 1.5px; cursor: pointer; }
 .hcell--today::after { content: ''; position: absolute; inset: -7px; }
+
+/* ---------------------------------------------------------------- editor -- */
+
+.editor { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 14px; }
+.field { display: block; margin-bottom: 14px; }
+.field > span { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { width: 24px; height: 24px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.swatch--on { border-color: var(--fg); }
+
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button {
+  border: 1px solid var(--line); background: transparent; color: var(--fg);
+  border-radius: 7px; padding: 7px 11px; font: inherit; font-size: 0.8125rem; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.seg--days button { min-width: 36px; }
+
+.editor-actions { display: flex; gap: 8px; }
+.editor-actions .btn { width: auto; margin-top: 0; }
+
+.habit-name--button {
+  border: 0; background: none; padding: 0; font: inherit;
+  color: var(--fg); text-align: left; cursor: pointer;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.cadence { font-size: 0.6875rem; color: var(--muted); }

@@ -66,13 +66,17 @@ at 1.0; a rest day with nothing scheduled is neutral rather than a failure; and
 push the numerator to the denominator while a scheduled habit was actually
 missed, and that must not award a Perfect Day.
 
-## V1-4 · Cadence and weight editing
+## V1-4 · Cadence and weight editing ✅
 
 Create/edit a habit with a name, colour, cadence (`daily`, chosen weekdays, or
 N per week) and Weight (Minor / Core / Unskippable).
 
 Editing cadence or weight **writes a new `habit_schedules` row** dated today. It
 never updates the existing one — that is the whole point of ADR 0004.
+
+**Result:** clicking a habit's name opens an inline editor for name, colour, cadence and weight. `setSchedule` writes a new effective-dated row rather than updating the existing one.
+
+Editing twice in one day reuses that day's row instead of inserting a second — the server has a unique constraint on `(habit_id, effective_from)`, so a second insert would be rejected on push and the change would silently never sync.
 
 **Done when:** changing a habit's cadence leaves its historical Cells scored
 under the old cadence, verified in the UI and not only in tests.

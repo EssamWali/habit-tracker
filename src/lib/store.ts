@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 import { db } from './db'
 import { today } from './day'
-import type { Day, DayEntry, Habit, HabitSchedule, OutboxItem, SyncedTable } from './types'
+import type { CadenceType, Day, DayEntry, Habit, HabitSchedule, OutboxItem, SyncedTable, Weight } from './types'
 
 export const nowStamp = () => new Date().toISOString()
 
@@ -116,5 +116,51 @@ export async function toggleDay(userId: string, habitId: string, day: Day): Prom
 
     await db.day_entries.put(row)
     await db.outbox.put({ table: 'day_entries', key: `${habitId}|${day}`, payload: row, created_at: stamp })
+  })
+}
+
+/** Patch a Habit's own fields. Cadence and weight do NOT live here (ADR 0004). */
+export const updateHabit = (
+  habit: Habit,
+  patch: Partial<Pick<Habit, 'name' | 'colour' | 'start_date' | 'sort_order' | 'archived_at'>>,
+) => write('habits', { ...habit, ...patch })
+
+/**
+ * Change a Habit's cadence or weight from today onward.
+ *
+ * This writes a NEW effective-dated row rather than editing the existing one —
+ * the point of ADR 0004 is that history stays scored under the schedule that
+ * was actually in force at the time.
+ *
+ * Editing twice in one day reuses that day's row instead of inserting a second:
+ * the server has a unique constraint on (habit_id, effective_from), so a second
+ * insert would be rejected on push and the change would never sync.
+ */
+export async function setSchedule(
+  habit: Habit,
+  patch: {
+    cadence_type: CadenceType
+    weekdays: number[] | null
+    weekly_target: number | null
+    weight: Weight
+  },
+): Promise<void> {
+  const day = today()
+  await db.transaction('rw', [db.habit_schedules, db.outbox], async () => {
+    const existing = await db.habit_schedules
+      .where('[habit_id+effective_from]')
+      .equals([habit.id, day])
+      .first()
+
+    const stamp = nowStamp()
+    const row: HabitSchedule = existing
+      ? { ...existing, ...patch, updated_at: stamp, deleted_at: null }
+      : {
+          id: crypto.randomUUID(), habit_id: habit.id, user_id: habit.user_id,
+          effective_from: day, ...patch, updated_at: stamp, deleted_at: null,
+        }
+
+    await db.habit_schedules.put(row)
+    await db.outbox.put({ table: 'habit_schedules', key: row.id, payload: row, created_at: stamp })
   })
 }

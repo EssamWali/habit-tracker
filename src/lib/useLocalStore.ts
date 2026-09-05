@@ -68,3 +68,12 @@ export function useCompletionsByHabit(userId: string | undefined) {
     new Map<string, Set<string>>(),
   )
 }
+
+/** All live schedule rows for a user. Consumers resolve per day via R1. */
+export function useSchedules(userId: string | undefined) {
+  return useLiveQuery(
+    async () => (userId ? alive(await db.habit_schedules.where('user_id').equals(userId).toArray()) : []),
+    [userId],
+    [],
+  )
+}
