@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildGrid, buildMonthGrid } from './lib/calendar'
 import { cellState, streaks } from './lib/rules'
 import type { Day, EntryKind, Habit, HabitSchedule } from './lib/types'
@@ -38,10 +38,59 @@ export default function Heatmap({
     () => streaks(habit, schedules, entries, today), [habit, schedules, entries, today])
 
   // Pin to the right edge for rolling windows; a calendar month fits already.
+  const days = useMemo(() => weeks.flat(), [weeks])
+  const [focusDay, setFocusDay] = useState<Day>(today)
+  const cellId = (day: Day) => `${habit.id}-${day}`
+
   useEffect(() => {
     const el = scroller.current
     if (el && range !== 'month') el.scrollLeft = el.scrollWidth
   }, [weeks.length, range])
+
+  // Keep the cursor inside the window when the range changes under it.
+  useEffect(() => {
+    if (!days.includes(focusDay)) setFocusDay(days.includes(today) ? today : days[days.length - 1]!)
+  }, [days, focusDay, today])
+
+  /**
+   * Roving cursor over the grid. The grid itself holds the single tab stop and
+   * moves an active descendant, rather than putting 365 cells in the tab order
+   * — tabbing through a year of squares to reach the next habit would make the
+   * keyboard path unusable.
+   *
+   * days is column-major (each week is seven consecutive entries), so a step of
+   * one moves down a column and a step of seven moves across to the same
+   * weekday in the next week.
+   */
+  function onKeyDown(e: React.KeyboardEvent) {
+    const i = days.indexOf(focusDay)
+    if (i < 0) return
+
+    let next = i
+    switch (e.key) {
+      case 'ArrowUp': next = i - 1; break
+      case 'ArrowDown': next = i + 1; break
+      case 'ArrowLeft': next = i - 7; break
+      case 'ArrowRight': next = i + 7; break
+      case 'Home': next = 0; break
+      case 'End': next = days.length - 1; break
+      case 'Enter':
+      case ' ': {
+        e.preventDefault()
+        const state = cellState(habit, schedules, focusDay, today, entries, completed)
+        if (state === 'out_of_range' || state === 'unscheduled') return
+        if (focusDay === today) onToggle(focusDay)
+        else onSelect(focusDay)
+        return
+      }
+      default: return
+    }
+
+    e.preventDefault()
+    if (next < 0 || next >= days.length) return
+    setFocusDay(days[next]!)
+    document.getElementById(cellId(days[next]!))?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
 
   return (
     <div className="heatmap-scroll" ref={scroller}>
@@ -57,7 +106,14 @@ export default function Heatmap({
             {WEEKDAY_LABELS.map((l, i) => <span key={i}>{l}</span>)}
           </div>
 
-          <div className="heatmap-grid">
+          <div
+            className="heatmap-grid"
+            role="grid"
+            tabIndex={0}
+            aria-label={`${habit.name} history. Arrow keys to move, Enter to mark.`}
+            aria-activedescendant={cellId(focusDay)}
+            onKeyDown={onKeyDown}
+          >
             {weeks.flat().map(day => {
               const state = cellState(habit, schedules, day, today, entries, completed)
               const gilded = state === 'completed' && gold.has(day)
@@ -79,7 +135,11 @@ export default function Heatmap({
 
               const title = state === 'out_of_range' ? day : `${day} — ${describe(state, gilded)}`
 
-              if (inert) return <i key={day} className={cls} title={title} />
+              const focused = day === focusDay ? ' hcell--focus' : ''
+
+              if (inert) {
+                return <i key={day} id={cellId(day)} role="gridcell" className={cls + focused} title={title} />
+              }
 
               // Today toggles in one tap: it is touched daily and is the one
               // Cell outlined and padded enough to hit deliberately. Every
@@ -88,8 +148,9 @@ export default function Heatmap({
               if (day === today) {
                 return (
                   <button
-                    key={day} className={cls} title={title}
-                    onClick={() => onToggle(day)}
+                    key={day} id={cellId(day)} role="gridcell" tabIndex={-1}
+                    className={cls + focused} title={title}
+                    onClick={() => { setFocusDay(day); onToggle(day) }}
                     aria-pressed={state === 'completed'}
                     aria-label={`${habit.name}, today: ${describe(state, gilded)}`}
                   />
@@ -98,11 +159,10 @@ export default function Heatmap({
 
               return (
                 <button
-                  key={day}
-                  className={`${cls} hcell--pick`}
+                  key={day} id={cellId(day)} role="gridcell" tabIndex={-1}
+                  className={`${cls} hcell--pick${focused}`}
                   title={title}
-                  tabIndex={-1}
-                  onClick={() => onSelect(day)}
+                  onClick={() => { setFocusDay(day); onSelect(day) }}
                   aria-label={`${habit.name}, ${day}: ${describe(state, gilded)}`}
                 />
               )

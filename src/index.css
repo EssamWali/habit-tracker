@@ -336,3 +336,41 @@ body {
 
 .habits li.is-dragging { opacity: 0.55; }
 .habits li.is-dragging .grip { cursor: grabbing; }
+
+/* ------------------------------------------------- focus and tap targets -- */
+
+/* One visible focus style everywhere. :focus-visible rather than :focus so a
+   mouse click does not leave a ring behind. */
+:where(button, input, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.heatmap-grid:focus-visible { outline-offset: 1px; }
+
+/* The roving cursor. Distinct from the today outline so both can show at once. */
+.hcell--focus { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--fg); }
+
+/* Heatmap cells are a data grid, not standalone controls: 365 targets of 24px
+   would be 8700px wide. On touch they grow a little, today carries a padded hit
+   area, past days open a sheet that names the date before anything is written,
+   and the whole grid is reachable by keyboard. */
+@media (pointer: coarse) {
+  :root { --cell: 13px; --cell-step: 16px; }
+}
+
+/* Every real control clears 24px. */
+.theme-toggle button { padding: 6px 10px; min-height: 26px; }
+.seg button { min-height: 30px; }
+.linkish { min-height: 24px; }
+
+/* --------------------------------------------------------- overflow guards -- */
+
+/* A long habit name must wrap rather than widen the row and push the page
+   sideways. min-width:0 is required: a flex child defaults to min-content
+   width, which refuses to shrink below its longest word. */
+.habit-head { min-width: 0; }
+.habit-name { min-width: 0; overflow-wrap: anywhere; }
+.habit-name--button { min-width: 0; flex-wrap: wrap; }
+.card, .habits li, .aggregate { min-width: 0; }

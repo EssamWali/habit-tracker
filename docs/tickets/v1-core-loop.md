@@ -170,10 +170,18 @@ Recorded limitation: concurrent reordering on two offline devices is the one cas
 
 **Done when:** an order set on desktop survives a sync and appears on the phone.
 
-## V1-11 · Layout and accessibility pass
+## V1-11 · Layout and accessibility pass ✅
 
 Mobile heatmap scrolling, tap targets at least 24px, keyboard navigation, focus
 states, and `aria-pressed` on every toggle.
+
+**Result:** each heatmap is one tab stop holding a roving cursor over its cells, moved with arrows, jumped with Home/End, and activated with Enter or Space. Putting 365 cells in the tab order instead would mean tabbing through a year of squares to reach the next habit.
+
+`:focus-visible` gives one consistent ring everywhere without leaving rings behind after mouse clicks. The cursor ring is distinct from the today outline so both can show simultaneously.
+
+**Tap targets:** every real control clears 24px. Heatmap cells deliberately do not — 365 targets at 24px would be 8700px wide. Instead they grow on coarse pointers, today carries a padded hit area, past days open a sheet naming the date before anything is written, and the entire grid is keyboard-reachable.
+
+**Horizontal overflow:** `min-width: 0` on the flex chains. A flex child defaults to min-content width and refuses to shrink below its longest word, so one long habit name would otherwise widen the row and push the page sideways.
 
 **Done when:** the whole app is operable by keyboard, and the page never scrolls
 horizontally at 360px.

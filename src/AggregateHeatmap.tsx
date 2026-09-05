@@ -72,7 +72,11 @@ export default function AggregateHeatmap({
               {WEEKDAY_LABELS.map((l, i) => <span key={i}>{l}</span>)}
             </div>
 
-            <div className="heatmap-grid">
+            <div
+              className="heatmap-grid"
+              role="img"
+              aria-label={`Combined history across ${habits.length} habits`}
+            >
               {weeks.flat().map(day => {
                 const r = cells.get(day)!
                 const cls = r.isPerfectDay ? 'acell acell--perfect'
