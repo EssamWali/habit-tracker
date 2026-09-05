@@ -269,3 +269,23 @@ h1 { font-size: 1.25rem; margin: 0 0 4px; }
 }
 
 .remove:hover { color: #b35900; background: var(--cell-empty); }
+
+/* Today's cell is the tap target. A 10px square is far below a usable touch
+   size, so an invisible pseudo-element widens the hit area without disturbing
+   the grid's geometry. */
+.hcell--today {
+  position: relative;
+  padding: 0;
+  border: 0;
+  outline: 1.5px solid var(--fg);
+  outline-offset: 1.5px;
+  cursor: pointer;
+}
+
+.hcell--today::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+}
+
+.heatmap-grid { padding: 3px; }

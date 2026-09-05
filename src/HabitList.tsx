@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { today } from './lib/day'
 import { createHabit, removeHabit, toggleDay } from './lib/store'
-import { useCompletedOn, useCompletionsByHabit, useHabits, useOutboxDepth } from './lib/useLocalStore'
+import { useCompletionsByHabit, useHabits, useOutboxDepth } from './lib/useLocalStore'
 import Heatmap from './Heatmap'
 import { useSync } from './lib/useSync'
 
@@ -17,7 +17,6 @@ function syncLabel(status: ReturnType<typeof useSync>['status']): string {
 export default function HabitList({ userId }: { userId: string }) {
   const day = today()
   const habits = useHabits(userId)
-  const completed = useCompletedOn(userId, day)
   const byHabit = useCompletionsByHabit(userId)
   const pending = useOutboxDepth()
   const { status, syncNow } = useSync(userId)
@@ -39,16 +38,11 @@ export default function HabitList({ userId }: { userId: string }) {
 
       <ul className="habits">
         {habits.map(h => {
-          const done = completed.has(h.id)
+          const doneDays = byHabit.get(h.id) ?? new Set<string>()
+          const done = doneDays.has(day)
           return (
             <li key={h.id}>
               <div className="habit-head">
-                <button
-                  className={done ? 'cell cell--done' : 'cell'}
-                  onClick={() => toggleDay(userId, h.id, day)}
-                  aria-pressed={done}
-                  aria-label={`${done ? 'Completed' : 'Not completed'} today: ${h.name}`}
-                />
                 <span className={done ? 'habit-name habit-name--done' : 'habit-name'}>{h.name}</span>
                 <button
                   className="remove"
@@ -59,7 +53,12 @@ export default function HabitList({ userId }: { userId: string }) {
                   }}
                 >×</button>
               </div>
-              <Heatmap habit={h} today={day} completed={byHabit.get(h.id) ?? new Set()} />
+              <Heatmap
+                habit={h}
+                today={day}
+                completed={doneDays}
+                onToggle={d => toggleDay(userId, h.id, d)}
+              />
             </li>
           )
         })}

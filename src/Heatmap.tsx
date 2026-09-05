@@ -18,8 +18,8 @@ function cellState(day: Day, habit: Habit, today: Day, completed: Set<Day>): Cel
 }
 
 export default function Heatmap({
-  habit, today, completed,
-}: { habit: Habit; today: Day; completed: Set<Day> }) {
+  habit, today, completed, onToggle,
+}: { habit: Habit; today: Day; completed: Set<Day>; onToggle: (day: Day) => void }) {
   const scroller = useRef<HTMLDivElement>(null)
   const { weeks, monthLabels } = buildGrid(today, 365)
 
@@ -50,13 +50,24 @@ export default function Heatmap({
                   guarantees exactly 7 per week, which the tests assert. */}
               {weeks.flat().map(day => {
                 const state = cellState(day, habit, today, completed)
-                return (
-                  <i
-                    key={day}
-                    className={`hcell hcell--${state}`}
-                    title={state === 'out' ? day : `${day} — ${state === 'completed' ? 'done' : 'not done'}`}
-                  />
-                )
+                const label = state === 'out' ? day : `${day} — ${state === 'completed' ? 'done' : 'not done'}`
+
+                // Today is the only interactive Cell in v0. Backfilling any past
+                // day is settled design (Q14) but needs a bigger tap target than
+                // a 10px square, so it waits for v1.
+                if (day === today) {
+                  return (
+                    <button
+                      key={day}
+                      className={`hcell hcell--${state} hcell--today`}
+                      onClick={() => onToggle(day)}
+                      aria-pressed={state === 'completed'}
+                      aria-label={`${habit.name}, today: ${state === 'completed' ? 'done' : 'not done'}`}
+                      title={label}
+                    />
+                  )
+                }
+                return <i key={day} className={`hcell hcell--${state}`} title={label} />
               })}
             </div>
           </div>
