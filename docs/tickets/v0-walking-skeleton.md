@@ -28,13 +28,15 @@ Implement `docs/data-model.md` as a migration: all four tables, `updated_at`/`de
 
 Project ref `ogylocnwwgakcmhcfjbq`. Migration applied via the dashboard SQL Editor; the CLI needs `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` set as machine environment variables before it can run headlessly.
 
-## V0-3 · Auth
+## V0-3 · Auth ✅
 
 Google OAuth and email magic link. Session persists across restarts and survives being offline at launch.
 
 **Carried over from V0-2:** "Confirm email" was turned **off** so the isolation test could obtain sessions for two users. Email/password is not a product feature (Q10 settled on Google OAuth plus magic link), but leaving confirmations off means anyone can register against an address they do not own. Decide deliberately as part of this ticket: either re-enable confirmations, or disable email/password sign-up while keeping the email provider on for magic link.
 
 **Done when:** cold-starting the installed PWA in airplane mode lands on the logged-in view, not a login screen.
+
+**Result:** verified on a real Android device. Google OAuth is live (Google Auth Platform app kept in Testing with the owner added as a test user — Testing mode is sufficient because Supabase uses Google only for initial identity and then issues its own session tokens, so Google's 7-day refresh expiry never applies). Magic link is wired but untested: it needs redirect URLs allowlisted, and the default 2 emails/hour cannot be raised without custom SMTP. Since Google OAuth is the primary method, SMTP was deliberately not set up.
 
 ## V0-4 · Local store
 
