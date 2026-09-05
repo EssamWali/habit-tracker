@@ -60,15 +60,24 @@ export function useSync(userId: string | undefined) {
     if (!userId) return
     run()
 
-    const onOnline = () => {
+    const kick = () => {
       failures.current = 0
       clearTimeout(timer.current)
       run()
     }
-    window.addEventListener('online', onOnline)
+
+    // Reconnecting almost always means the backoff is stale.
+    window.addEventListener('online', kick)
+
+    // Browsers throttle timers in backgrounded tabs, so the interval can
+    // stretch to minutes while the app sits closed. Syncing the moment it
+    // becomes visible is what makes picking up the phone feel instant.
+    const onVisible = () => { if (document.visibilityState === 'visible') kick() }
+    document.addEventListener('visibilitychange', onVisible)
 
     return () => {
-      window.removeEventListener('online', onOnline)
+      window.removeEventListener('online', kick)
+      document.removeEventListener('visibilitychange', onVisible)
       clearTimeout(timer.current)
     }
   }, [userId, run])
