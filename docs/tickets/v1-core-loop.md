@@ -26,7 +26,7 @@ prove the old schedule still governs old days (ADR 0004); a `weekly_quota`
 habit entering and leaving the denominator as its quota is met and the week
 rolls over; and all three OUT_OF_RANGE boundaries.
 
-## V1-2 · R3 + R4 — cell state, streaks, gold
+## V1-2 · R3 + R4 — cell state, streaks, gold ✅
 
 `cellState` returns `completed | frozen | missed | unscheduled | out_of_range`.
 `streaks` iterates Scheduled Days for daily/weekday habits and ISO weeks for
@@ -34,6 +34,15 @@ rolls over; and all three OUT_OF_RANGE boundaries.
 
 Implement the Freeze branch now even though no UI creates one until v3 —
 retrofitting it into the streak walk later means rewriting it.
+
+**Result:** 16 further tests, 53 passing overall.
+
+Two rules the design never settled, decided here and documented in the source:
+
+- **A change of cadence *type* ends the current run.** The unit of measurement changes with it, so carrying a count of days into a regime measured in weeks compares unlike things. Changing which weekdays, or the weekly target, does *not* break a run — the unit is unchanged.
+- **The current unit is pending, not failed.** Otherwise an unfinished today reads as a broken streak every morning. For weekly habits the current ISO week is likewise pending until it either meets quota or ends.
+
+Also settled: for a weekly-quota habit a Freeze protects the *week*, since the week is the unit a token can meaningfully buy.
 
 **Done when:** tests prove a `weekly_quota` habit never produces a daily Miss;
 gold applies retroactively across a whole run and survives the streak breaking
