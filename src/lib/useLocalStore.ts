@@ -28,3 +28,19 @@ export function useDayEntries(userId: string | undefined) {
 export function useOutboxDepth() {
   return useLiveQuery(() => db.outbox.count(), [], 0)
 }
+
+/**
+ * Which Habits are completed on a given Day, as a set of habit ids.
+ * Tombstoned entries are filtered out, so an un-ticked Cell reads as absent.
+ */
+export function useCompletedOn(userId: string | undefined, day: string) {
+  return useLiveQuery(
+    async () => {
+      if (!userId) return new Set<string>()
+      const rows = await db.day_entries.where('day').equals(day).toArray()
+      return new Set(alive(rows).filter(r => r.user_id === userId).map(r => r.habit_id))
+    },
+    [userId, day],
+    new Set<string>(),
+  )
+}

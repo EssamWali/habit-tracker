@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 import { db } from './db'
 import { today } from './day'
-import type { DayEntry, Habit, HabitSchedule, OutboxItem, SyncedTable } from './types'
+import type { Day, DayEntry, Habit, HabitSchedule, OutboxItem, SyncedTable } from './types'
 
 export const nowStamp = () => new Date().toISOString()
 
@@ -92,5 +92,29 @@ export async function createHabit(
     await db.outbox.put({ table: 'habits', key: habit.id, payload: habit, created_at: stamp })
     await db.outbox.put({ table: 'habit_schedules', key: schedule.id, payload: schedule, created_at: stamp })
     return habit
+  })
+}
+
+/**
+ * Toggle a Habit's Completion for a Day.
+ *
+ * Un-ticking writes a tombstone rather than deleting the row: a device that was
+ * offline has to learn the Completion was removed, and a deleted row carries no
+ * such news (ADR 0002).
+ *
+ * The read and the write share a transaction so two fast taps cannot both
+ * observe the same prior state and end up agreeing on the wrong result.
+ */
+export async function toggleDay(userId: string, habitId: string, day: Day): Promise<void> {
+  await db.transaction('rw', [db.day_entries, db.outbox], async () => {
+    const existing = await db.day_entries.get([habitId, day])
+    const stamp = nowStamp()
+
+    const row: DayEntry = existing
+      ? { ...existing, kind: 'completed', deleted_at: existing.deleted_at === null ? stamp : null, updated_at: stamp }
+      : { habit_id: habitId, day, user_id: userId, kind: 'completed', value: null, note: null, updated_at: stamp, deleted_at: null }
+
+    await db.day_entries.put(row)
+    await db.outbox.put({ table: 'day_entries', key: `${habitId}|${day}`, payload: row, created_at: stamp })
   })
 }

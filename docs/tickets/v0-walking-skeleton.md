@@ -38,23 +38,29 @@ Google OAuth and email magic link. Session persists across restarts and survives
 
 **Result:** verified on a real Android device. Google OAuth is live (Google Auth Platform app kept in Testing with the owner added as a test user — Testing mode is sufficient because Supabase uses Google only for initial identity and then issues its own session tokens, so Google's 7-day refresh expiry never applies). Magic link is wired but untested: it needs redirect URLs allowlisted, and the default 2 emails/hour cannot be raised without custom SMTP. Since Google OAuth is the primary method, SMTP was deliberately not set up.
 
-## V0-4 · Local store
+## V0-4 · Local store ✅
 
 IndexedDB (Dexie) mirroring the server schema exactly, plus an `outbox` of pending mutations. All reads in the app go through the local store — never directly to Supabase. Writes are synchronous to local and enqueue.
 
 **Done when:** every UI surface renders from IndexedDB with the network disabled.
 
-## V0-5 · Sync engine
+**Result:** Dexie mirrors the server schema exactly, including the compound `(habit_id, day)` key. Habits are read through the `[user_id+sort_order]` index — querying by `user_id` alone orders by primary key, which is a random UUID. Signing in as a different account drops and rebuilds the mirror.
+
+## V0-5 · Sync engine ✅
 
 Push the outbox; pull `where updated_at > last_sync` including tombstones; merge by last-write-wins on client-set `updated_at`. Upsert-based, with no read-modify-write in the write path. Retry with backoff; survive being killed mid-flight.
 
 **Done when:** the two-device conflict test in V0-8 passes.
 
-## V0-6 · Create habit and toggle today
+**Result:** push/pull verified round-tripping against Supabase. Migration 0002 adds server-set `synced_at` as the pull cursor, because the client-set `updated_at` is unusable for paging — a device with a lagging clock writes rows beneath a cursor another device has passed. Cursors are per table. Timestamp comparison goes through `Date.parse`, since the client writes `...Z` and Postgres returns `...+00:00`.
+
+## V0-6 · Create habit and toggle today ✅
 
 Daily cadence only. Creating a habit also writes its initial `habit_schedules` row at `effective_from = start_date`. Tapping today's cell toggles a `day_entries` row (`kind = 'completed'`) and un-toggling writes a tombstone. Implement R0 (`today()`) with the 04:00 Day Start — hardcoded, no settings UI.
 
 **Done when:** toggling at 01:30 local credits the previous day.
+
+**Result:** R0 implemented in `src/lib/day.ts` and covered by 8 unit tests (`npm test`), including month and year rollover and an explicit regression guard against `toISOString()` UTC leakage. Vitest added — `derivation-rules.md` requires R0–R7 to be unit-testable in isolation, so v1 inherits the harness.
 
 ## V0-7 · Minimal heatmap
 

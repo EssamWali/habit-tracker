@@ -149,3 +149,42 @@ h1 { font-size: 1.25rem; margin: 0 0 4px; }
 .list li { margin: 2px 0; }
 
 .note { font-size: 0.75rem; margin: 12px 0 0; }
+
+.habits { list-style: none; margin: 0 0 16px; padding: 0; }
+
+.habits li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.cell {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #ebedf0;
+  cursor: pointer;
+}
+
+.cell--done { background: var(--ok); border-color: var(--ok); }
+
+.habit-name { font-size: 0.9375rem; }
+.habit-name--done { color: var(--muted); }
+
+.add-row { display: flex; gap: 8px; align-items: flex-start; }
+.add-row .input { margin-bottom: 0; }
+.add-row .btn { width: auto; flex: none; }
+
+.linkish {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
