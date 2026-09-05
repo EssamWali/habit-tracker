@@ -58,10 +58,14 @@ export async function ensureUserScope(userId: string | null): Promise<boolean> {
   return true
 }
 
-export async function getSyncCursor(): Promise<string | null> {
-  return (await db.meta.get('sync_cursor'))?.value ?? null
+/**
+ * Pull cursors are per table, not global. A single cursor advanced by whichever
+ * table synced last would skip rows in the tables that lagged behind it.
+ */
+export async function getSyncCursor(table: string): Promise<string> {
+  return (await db.meta.get(`cursor:${table}`))?.value ?? '1970-01-01T00:00:00Z'
 }
 
-export async function setSyncCursor(stamp: string): Promise<void> {
-  await db.meta.put({ key: 'sync_cursor', value: stamp })
+export async function setSyncCursor(table: string, stamp: string): Promise<void> {
+  await db.meta.put({ key: `cursor:${table}`, value: stamp })
 }

@@ -4,11 +4,24 @@ import { supabase } from './lib/supabase'
 import { ensureUserScope } from './lib/db'
 import { createHabit } from './lib/store'
 import { useHabits, useOutboxDepth } from './lib/useLocalStore'
+import { useSync } from './lib/useSync'
 import SignIn from './SignIn'
+
+function syncLabel(status: ReturnType<typeof useSync>['status']): string {
+  switch (status.state) {
+    case 'syncing': return 'syncing…'
+    case 'offline': return 'offline — queued'
+    case 'error': return `failed, retrying in ${status.retryInSeconds}s`
+    case 'idle': return status.lastSync
+      ? `synced (pushed ${status.pushed ?? 0}, pulled ${status.pulled ?? 0})`
+      : 'idle'
+  }
+}
 
 function LocalStorePanel({ userId }: { userId: string }) {
   const habits = useHabits(userId)
   const pending = useOutboxDepth()
+  const { status, syncNow } = useSync(userId)
 
   // Temporary: V0-6 replaces this with the real create-habit flow. It exists
   // now so V0-4's acceptance is observable — a write with the network disabled
@@ -27,11 +40,14 @@ function LocalStorePanel({ userId }: { userId: string }) {
           {habits.map(h => <li key={h.id}>{h.name}</li>)}
         </ul>
       )}
-      <button className="btn btn--quiet" onClick={addLocalHabit}>Add a habit locally</button>
-      <p className="muted note">
-        Reads come from IndexedDB, writes queue in the outbox. Both work with the
-        network off; nothing here touches Supabase yet.
+      <p className={status.state === 'error' ? 'error' : 'muted note'}>
+        {syncLabel(status)}
+        {status.state === 'error' && <><br />{status.message}</>}
       </p>
+      <button className="btn btn--quiet" onClick={addLocalHabit}>Add a habit locally</button>
+      <button className="btn btn--quiet" onClick={syncNow} disabled={status.state === 'syncing'}>
+        Sync now
+      </button>
     </div>
   )
 }

@@ -8,6 +8,7 @@ Postgres on Supabase. Every table carries `user_id`, `updated_at`, and `deleted_
 - **`deleted_at timestamptz null`** — tombstone. Nothing is hard-deleted at write time; a device that was offline must be able to learn that a row died. A background purge removes tombstones older than 90 days.
 - `profiles` is the sole exception to `deleted_at`: it is a singleton per user, created by trigger and removed only by cascade, so a tombstone would be a footgun rather than a feature.
 - **`user_id uuid not null`** — denormalised onto every table, including child tables, so each RLS policy is a single-column comparison with no joins.
+- **`synced_at timestamptz not null default now()`** — set by the *server* on every accepted write, and the only safe pull cursor. `updated_at` cannot serve this purpose: being client-set, a device with a lagging clock would write rows beneath a cursor another device had already passed, and they would never be pulled. Two columns, two jobs.
 - Dates are `date`, never `timestamptz` (ADR 0003).
 
 ## Tables
