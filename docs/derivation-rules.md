@@ -77,6 +77,8 @@ Over all non-`OUT_OF_RANGE` habits, using each habit's weight resolved **as of `
 - entry `kind = frozen` → contributes to denominator only; a Freeze never counts toward completion (glossary)
 - completed while *not* scheduled (bonus) → numerator only, then clamp `ratio` to 1.0
 
+  Note: the UI no longer *offers* a tick on an unscheduled day — declaring a cadence and then inviting a completion outside it undermines the cadence. The rule stays because such entries can still arise from a cadence change, and must be scored when they do.
+
 `denominator == 0` → render **neutral/unscheduled, never 0%**. A rest day is not a failure.
 
 Bands: `(0, .25]`, `(.25, .5]`, `(.5, .75]`, `(.75, 1]`, with `ratio == 0 && denominator > 0` rendering as the empty-but-owed state.

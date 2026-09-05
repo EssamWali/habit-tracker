@@ -61,14 +61,25 @@ export default function Heatmap({
             {weeks.flat().map(day => {
               const state = cellState(habit, schedules, day, today, entries, completed)
               const gilded = state === 'completed' && gold.has(day)
+
+              // Days the habit was never scheduled for are inert. Declaring a
+              // cadence and then being offered a tick on an off-day undermines
+              // the cadence. R5 still scores a bonus completion if one exists —
+              // from a cadence change, say — but the UI does not invite one.
+              const inert = state === 'out_of_range' || state === 'unscheduled'
+
               const cls = [
                 'hcell',
                 `hcell--${state === 'out_of_range' ? 'out' : state}`,
                 gilded ? (tier2.has(day) ? 'hcell--tier2' : 'hcell--gold') : '',
-                day === today ? 'hcell--today' : '',
+                // Today is marked either way, but softly when it cannot be
+                // acted on, so the outline never implies a tap target.
+                day === today ? (inert ? 'hcell--today-off' : 'hcell--today') : '',
               ].filter(Boolean).join(' ')
 
               const title = state === 'out_of_range' ? day : `${day} — ${describe(state, gilded)}`
+
+              if (inert) return <i key={day} className={cls} title={title} />
 
               // Today toggles in one tap: it is touched daily and is the one
               // Cell outlined and padded enough to hit deliberately. Every
@@ -84,8 +95,6 @@ export default function Heatmap({
                   />
                 )
               }
-
-              if (state === 'out_of_range') return <i key={day} className={cls} title={title} />
 
               return (
                 <button

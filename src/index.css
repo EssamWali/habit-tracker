@@ -197,11 +197,16 @@ body {
 .hcell--completed { background: var(--habit-hue); }
 .hcell--frozen { background: var(--habit-hue); opacity: 0.4; }
 .hcell--missed { background: var(--cell-missed); }
-/* Three distinguishable non-completed states, in descending emphasis:
-   missed is a solid square (owed, not done); unscheduled is hollow — an
-   outline only, so it reads as "never asked of you"; out-of-range is a barely
-   visible fill that keeps the lattice intact without drawing the eye. */
-.hcell--unscheduled { background: transparent; box-shadow: inset 0 0 0 1.5px var(--cell-empty); }
+/* Unscheduled days are drawn as nothing at all. The grid stays seven rows so
+   it aligns with every other habit and with the aggregate, but a Mon/Wed/Fri
+   habit visibly occupies only three of them. Any fill here — even a hollow
+   outline — reads at 10px as "a day you missed" rather than "a day this habit
+   does not apply to".
+
+   Out-of-range keeps a faint fill: those days are outside the habit's range
+   rather than outside its cadence, and without it a newly created habit is an
+   empty void instead of a grid. */
+.hcell--unscheduled { background: transparent; box-shadow: none; }
 .hcell--out { background: var(--cell-void); }
 
 /* Gold replaces the habit's own colour once a run reaches threshold. The
@@ -311,3 +316,7 @@ body {
 }
 .archived-toggle { display: flex; align-items: center; gap: 5px; font-size: 0.6875rem; color: var(--muted); cursor: pointer; }
 .card-head { gap: 10px; }
+
+/* Today, when the habit is not scheduled for it: still located, never implied
+   to be actionable. */
+.hcell--today-off { outline: 1.5px dashed var(--line); outline-offset: 1.5px; }
