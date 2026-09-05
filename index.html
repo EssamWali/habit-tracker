@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#ffffff" />
     <title>Habit Tracker</title>
+    <script>
+      // Stamp the theme before first paint. Without this a dark-mode user sees
+      // a white flash while the bundle loads.
+      try {
+        var pref = localStorage.getItem('theme');
+        var dark = pref === 'dark' ||
+          (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (e) { /* storage may be blocked */ }
+    </script>
   </head>
   <body>
     <div id="root"></div>

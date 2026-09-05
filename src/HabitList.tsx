@@ -4,6 +4,8 @@ import { createHabit, removeHabit, toggleDay } from './lib/store'
 import { useCompletionsByHabit, useHabits, useOutboxDepth } from './lib/useLocalStore'
 import Heatmap from './Heatmap'
 import { useSync } from './lib/useSync'
+import { useTheme } from './lib/theme'
+import { hueValue } from './lib/palette'
 
 function syncLabel(status: ReturnType<typeof useSync>['status']): string {
   switch (status.state) {
@@ -20,6 +22,7 @@ export default function HabitList({ userId }: { userId: string }) {
   const byHabit = useCompletionsByHabit(userId)
   const pending = useOutboxDepth()
   const { status, syncNow } = useSync(userId)
+  const { resolved } = useTheme()
   const [name, setName] = useState('')
 
   async function add(e: React.FormEvent) {
@@ -39,11 +42,11 @@ export default function HabitList({ userId }: { userId: string }) {
       <ul className="habits">
         {habits.map(h => {
           const doneDays = byHabit.get(h.id) ?? new Set<string>()
-          const done = doneDays.has(day)
           return (
-            <li key={h.id}>
+            <li key={h.id} style={{ '--habit-hue': hueValue(h.colour, resolved) } as React.CSSProperties}>
               <div className="habit-head">
-                <span className={done ? 'habit-name habit-name--done' : 'habit-name'}>{h.name}</span>
+                <i className="habit-swatch" aria-hidden="true" />
+                <span className="habit-name">{h.name}</span>
                 <button
                   className="remove"
                   aria-label={`Delete ${h.name}`}

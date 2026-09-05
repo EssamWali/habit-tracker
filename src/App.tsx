@@ -4,9 +4,12 @@ import { supabase } from './lib/supabase'
 import { ensureUserScope } from './lib/db'
 import HabitList from './HabitList'
 import SignIn from './SignIn'
+import ThemeToggle from './ThemeToggle'
+import { useTheme } from './lib/theme'
 
 export default function App() {
   const auth = useSession()
+  const theme = useTheme()
   const [online, setOnline] = useState(navigator.onLine)
   const [scoped, setScoped] = useState(false)
 
@@ -34,9 +37,12 @@ export default function App() {
           <h1>Habit Tracker</h1>
           <p className="muted">v0 walking skeleton</p>
         </div>
-        <span className={online ? 'pill pill--online' : 'pill pill--offline'}>
-          {online ? 'online' : 'offline'}
-        </span>
+        <div className="header-right">
+          <ThemeToggle preference={theme.preference} onChoose={theme.choose} />
+          <span className={online ? 'pill pill--online' : 'pill pill--offline'}>
+            {online ? 'online' : 'offline'}
+          </span>
+        </div>
       </header>
 
       {auth.status === 'loading' && <p className="muted">Restoring session…</p>}

@@ -1,291 +1,190 @@
-/* Light theme only in v0. Dark mode is a v1 ticket and needs the full token
-   set, so it is not worth half-doing here. */
+/* ---------------------------------------------------------------- tokens --
+   Every colour is defined on bare :root and redefined for dark. Nothing gets
+   its only definition inside a theme block, so a missing data-theme still
+   renders correctly.                                                        */
+
 :root {
+  color-scheme: light;
+
   --bg: #ffffff;
+  --surface: #ffffff;
   --fg: #1f2328;
   --muted: #656d76;
   --line: #d1d9e0;
+  --danger: #b35900;
   --ok: #1a7f37;
-  --warn: #9a6700;
+
+  --cell-empty: #ebedf0;
+  --cell-missed: #ebedf0;
+
+  /* Reserved: no habit may claim these. */
+  --gold: #d4a017;
+  --gold-ring: #fde68a;
+
+  /* Aggregate ramp: a neutral ink scale, so it reads as "everything" rather
+     than as another habit competing with the palette. */
+  --agg-1: #d8dee4;
+  --agg-2: #a8b1bb;
+  --agg-3: #6e7781;
+  --agg-4: #24292f;
+
+  --cell: 10px;
+  --cell-gap: 3px;
+  --cell-step: 13px;
+
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0d1117;
+  --surface: #151b23;
+  --fg: #e6edf3;
+  --muted: #9198a1;
+  --line: #3d444d;
+  --danger: #ff9a5a;
+  --ok: #3fb950;
+
+  --cell-empty: #21262d;
+  --cell-missed: #21262d;
+
+  --gold: #e3b341;
+  --gold-ring: #f0d68a;
+
+  --agg-1: #2f3742;
+  --agg-2: #4e5966;
+  --agg-3: #7d8792;
+  --agg-4: #e6edf3;
+}
+
+/* Fallback before the inline script stamps data-theme, and for anything that
+   strips the attribute. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
+    --bg: #0d1117; --surface: #151b23; --fg: #e6edf3; --muted: #9198a1;
+    --line: #3d444d; --danger: #ff9a5a; --ok: #3fb950;
+    --cell-empty: #21262d; --cell-missed: #21262d;
+    --gold: #e3b341; --gold-ring: #f0d68a;
+    --agg-1: #2f3742; --agg-2: #4e5966; --agg-3: #7d8792; --agg-4: #e6edf3;
+  }
 }
 
 * { box-sizing: border-box; }
-
 html, body, #root { height: 100%; }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  /* The heatmap will scroll inside its own container; the page never does. */
-  overflow-x: hidden;
+  overflow-x: hidden;   /* the heatmap scrolls, never the page */
 }
 
-.shell {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
-}
+/* ----------------------------------------------------------------- shell -- */
 
-h1 { font-size: 1.25rem; margin: 0 0 4px; }
+.shell { max-width: 900px; margin: 0 auto; padding: 20px 16px calc(24px + env(safe-area-inset-bottom)); }
 
-.muted { color: var(--muted); margin: 0 0 16px; font-size: 0.875rem; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.header h1 { font-size: 1.25rem; margin: 0 0 2px; }
+.header-right { display: flex; align-items: center; gap: 8px; }
 
-.status {
-  display: inline-block;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 0.8125rem;
-}
+.muted { color: var(--muted); margin: 0; font-size: 0.875rem; }
+.note { font-size: 0.75rem; margin-top: 12px; }
+.error { color: var(--danger); font-size: 0.8125rem; margin: 10px 0 0; }
 
-.status--online { color: var(--ok); }
-.status--offline { color: var(--warn); }
-
-.header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.header .muted { margin: 0; }
-
-.pill {
-  flex: none;
-  padding: 4px 9px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 0.75rem;
-}
-
+.pill { flex: none; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 0.75rem; }
 .pill--online { color: var(--ok); }
-.pill--offline { color: var(--warn); }
+.pill--offline { color: var(--danger); }
 
-.card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 20px;
-  max-width: 380px;
-}
-
+.card { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 18px; }
+.card + .card { margin-top: 16px; }
 .card h2 { font-size: 1rem; margin: 0 0 12px; }
 
+/* --------------------------------------------------------------- controls -- */
+
 .btn {
-  display: block;
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--fg);
-  color: var(--bg);
-  font: inherit;
-  font-size: 0.875rem;
-  cursor: pointer;
+  display: block; width: 100%; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--fg); color: var(--bg);
+  font: inherit; font-size: 0.875rem; cursor: pointer;
 }
-
 .btn:disabled { opacity: 0.5; cursor: default; }
-
-.btn--quiet {
-  background: transparent;
-  color: var(--fg);
-  margin-top: 8px;
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 16px 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--line);
-}
+.btn--quiet { background: transparent; color: var(--fg); margin-top: 8px; }
 
 .input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font: inherit;
-  font-size: 0.875rem;
-  margin-bottom: 4px;
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg); color: var(--fg);
+  font: inherit; font-size: 0.875rem;
 }
 
-.error {
-  color: #b35900;
-  font-size: 0.8125rem;
-  margin: 10px 0 0;
+.linkish { border: 0; background: none; padding: 0; font: inherit; color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+.divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--muted); font-size: 0.75rem; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+.theme-toggle {
+  display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden;
 }
-
-.card + .card { margin-top: 16px; }
-
-.stats {
-  display: flex;
-  gap: 24px;
-  margin: 0 0 14px;
+.theme-toggle button {
+  border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-size: 0.6875rem; padding: 4px 8px; cursor: pointer;
 }
+.theme-toggle button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
 
-.stats div { margin: 0; }
-.stats dt { color: var(--muted); font-size: 0.75rem; }
-.stats dd { margin: 2px 0 0; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
-
-.list {
-  margin: 0 0 14px;
-  padding-left: 18px;
-  font-size: 0.875rem;
-}
-
-.list li { margin: 2px 0; }
-
-.note { font-size: 0.75rem; margin: 12px 0 0; }
+/* ---------------------------------------------------------------- habits -- */
 
 .habits { list-style: none; margin: 0 0 16px; padding: 0; }
+.habits li { display: block; padding: 10px 0; }
+.habit-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.habit-name { flex: 1; font-size: 0.9375rem; }
+.habit-swatch { flex: none; width: 10px; height: 10px; border-radius: 3px; background: var(--habit-hue); }
 
-.habits li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
+.remove {
+  flex: none; border: 0; background: none; padding: 2px 6px;
+  font-size: 1.125rem; line-height: 1; color: var(--muted);
+  cursor: pointer; border-radius: 4px;
 }
-
-.cell {
-  flex: none;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: #ebedf0;
-  cursor: pointer;
-}
-
-.cell--done { background: var(--ok); border-color: var(--ok); }
-
-.habit-name { font-size: 0.9375rem; }
-.habit-name--done { color: var(--muted); }
+.remove:hover { color: var(--danger); background: var(--cell-empty); }
 
 .add-row { display: flex; gap: 8px; align-items: flex-start; }
-.add-row .input { margin-bottom: 0; }
-.add-row .btn { width: auto; flex: none; }
+.add-row .btn { width: auto; flex: none; margin-top: 0; }
 
-.linkish {
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  color: var(--muted);
-  text-decoration: underline;
-  cursor: pointer;
-}
+/* --------------------------------------------------------------- heatmap -- */
 
-/* ---- heatmap ---------------------------------------------------------- */
-
-:root {
-  --cell: 10px;
-  --cell-gap: 3px;
-  --cell-step: 13px;   /* cell + gap; month labels align to this */
-  --cell-empty: #ebedf0;
-}
-
-.habits li { display: block; padding: 10px 0; }
-
-.habit-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-
-/* The scroll lives here, never on the page: a 360px screen must not scroll
-   sideways as a whole (Q17). */
-.heatmap-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 4px;
-  -webkit-overflow-scrolling: touch;
-}
-
+.heatmap-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
 .heatmap-inner { display: inline-block; }
 
-.heatmap-months {
-  display: grid;
-  margin-left: 30px;
-  height: 14px;
-  font-size: 0.625rem;
-  color: var(--muted);
-}
-
+.heatmap-months { display: grid; margin-left: 30px; height: 14px; font-size: 0.625rem; color: var(--muted); }
 .heatmap-months span { grid-row: 1; }
 
 .heatmap-body { display: flex; gap: 4px; }
 
 .heatmap-weekdays {
-  display: grid;
-  grid-template-rows: repeat(7, var(--cell));
-  gap: var(--cell-gap);
-  width: 26px;
-  font-size: 0.625rem;
-  color: var(--muted);
+  display: grid; grid-template-rows: repeat(7, var(--cell)); gap: var(--cell-gap);
+  width: 26px; font-size: 0.625rem; color: var(--muted);
 }
-
 .heatmap-weekdays span { line-height: var(--cell); }
 
 .heatmap-grid {
-  display: grid;
-  grid-template-rows: repeat(7, var(--cell));
-  grid-auto-flow: column;
-  grid-auto-columns: var(--cell);
-  gap: var(--cell-gap);
+  display: grid; grid-template-rows: repeat(7, var(--cell));
+  grid-auto-flow: column; grid-auto-columns: var(--cell);
+  gap: var(--cell-gap); padding: 3px;
 }
 
-.hcell {
-  width: var(--cell);
-  height: var(--cell);
-  border-radius: 2px;
-  background: var(--cell-empty);
-}
-
-.hcell--completed { background: var(--ok); }
+.hcell { width: var(--cell); height: var(--cell); border-radius: 2px; background: var(--cell-empty); }
+.hcell--completed { background: var(--habit-hue); }
+.hcell--missed { background: var(--cell-missed); }
+.hcell--unscheduled { background: transparent; box-shadow: inset 0 0 0 1px var(--cell-empty); }
 .hcell--out { background: transparent; }
 
-.habit-head .habit-name { flex: 1; }
+/* Gold replaces the habit's own colour once a run reaches threshold. The
+   second tier adds a ring rather than a fourteenth hue. */
+.hcell--gold { background: var(--gold); }
+.hcell--tier2 { background: var(--gold); box-shadow: inset 0 0 0 1.5px var(--gold-ring); }
 
-.remove {
-  flex: none;
-  border: 0;
-  background: none;
-  padding: 2px 6px;
-  font-size: 1.125rem;
-  line-height: 1;
-  color: var(--muted);
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.remove:hover { color: #b35900; background: var(--cell-empty); }
-
-/* Today's cell is the tap target. A 10px square is far below a usable touch
-   size, so an invisible pseudo-element widens the hit area without disturbing
-   the grid's geometry. */
-.hcell--today {
-  position: relative;
-  padding: 0;
-  border: 0;
-  outline: 1.5px solid var(--fg);
-  outline-offset: 1.5px;
-  cursor: pointer;
-}
-
-.hcell--today::after {
-  content: '';
-  position: absolute;
-  inset: -7px;
-}
-
-.heatmap-grid { padding: 3px; }
+/* Today is the tap target. A 10px square is far below a usable touch size, so
+   a pseudo-element widens the hit area without disturbing the grid. */
+.hcell--today { position: relative; padding: 0; border: 0; outline: 1.5px solid var(--fg); outline-offset: 1.5px; cursor: pointer; }
+.hcell--today::after { content: ''; position: absolute; inset: -7px; }

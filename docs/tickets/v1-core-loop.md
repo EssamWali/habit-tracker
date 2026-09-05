@@ -77,11 +77,17 @@ never updates the existing one — that is the whole point of ADR 0004.
 **Done when:** changing a habit's cadence leaves its historical Cells scored
 under the old cadence, verified in the UI and not only in tests.
 
-## V1-5 · Palette and dark mode
+## V1-5 · Palette and dark mode ✅
 
 Twelve curated hues, each with contrast-checked light and dark ramps. Gold,
 neutral grey, and the Aggregate Heatmap's own hue are reserved and unselectable.
 Theme follows the system preference with a manual override.
+
+**Result:** 12 hues in `src/lib/palette.ts`, each with a light and dark value. Gold, the empty-cell grey, and the Aggregate ramp are reserved. The Aggregate uses a neutral ink scale rather than a thirteenth hue, so it reads as "everything" instead of competing with the palette; the second gold tier adds a ring rather than inventing another colour.
+
+Every token is defined on bare `:root` and redefined under `[data-theme="dark"]`, with a `prefers-color-scheme` fallback for the moment before the inline script runs. That script stamps `data-theme` before first paint — without it, dark-mode users get a white flash while the bundle loads.
+
+Taken out of order, ahead of V1-4: the habit editor needs a colour picker, and building a throwaway palette to replace a ticket later is wasted work.
 
 **Done when:** every hue is legible against both backgrounds, no habit colour
 can be confused with gold or with the empty-cell grey, and the override persists
