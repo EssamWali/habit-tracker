@@ -1,5 +1,7 @@
 # v0 — Walking skeleton
 
+**Status: complete.** All eight tickets closed and verified on real hardware.
+
 **Goal:** prove the offline→online round trip and per-user isolation end to end, on a real Android phone, before any feature depends on them. Deliberately ugly. If v0 works, the rest is drawing.
 
 **Explicitly out of scope for all of v0:** weekly/weekday cadence, the colour Palette, the Aggregate Heatmap, streaks and gold, freezes, weights, statistics, notes, reminders, export, archive, dark mode, backfill.
@@ -70,7 +72,7 @@ Rolling last 365 days, Monday-start rows, right-aligned on today, horizontally s
 
 **Result:** `src/lib/calendar.ts` covered by 13 unit tests — Monday-start columns, seven days per column, window coverage including both endpoints, leap-day arithmetic, and local-time parsing (`Date.parse` on a bare `YYYY-MM-DD` reads UTC and shifts the day west of GMT). The scroll container is the heatmap, never the page.
 
-## V0-8 · Real-device verification
+## V0-8 · Real-device verification ✅
 
 Not a code ticket — the point of v0. On an actual Android phone plus a desktop browser:
 
@@ -80,3 +82,9 @@ Not a code ticket — the point of v0. On an actual Android phone plus a desktop
 4. Kill the app mid-sync; confirm the outbox replays without duplicating or losing entries.
 
 **Done when:** all four pass. If step 3 fails, stop and reopen ADR 0002 before starting v1.
+
+**Result:** all four passed on a real Android device plus desktop. The convergence test — both devices offline, the same Cell toggled opposite ways, reconnected in sequence — converged on the later write with no divergence and no flapping.
+
+Additionally verified, unplanned: a **server-originated deletion** propagating to clients. Bulk-tombstoning 39 test habits directly in SQL cleared them from both devices without user action, exercising the pull path picking up tombstones and the mirror learning about rows it never wrote. Both sync directions are now proven.
+
+**ADR 0002 is validated.** v1 can be built on the sync model rather than around it.
