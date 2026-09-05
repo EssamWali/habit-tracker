@@ -62,11 +62,13 @@ Daily cadence only. Creating a habit also writes its initial `habit_schedules` r
 
 **Result:** R0 implemented in `src/lib/day.ts` and covered by 8 unit tests (`npm test`), including month and year rollover and an explicit regression guard against `toISOString()` UTC leakage. Vitest added — `derivation-rules.md` requires R0–R7 to be unit-testable in isolation, so v1 inherits the harness.
 
-## V0-7 · Minimal heatmap
+## V0-7 · Minimal heatmap ✅
 
 Rolling last 365 days, Monday-start rows, right-aligned on today, horizontally scrollable on mobile with the viewport pinned to the right edge. Two-tone: completed vs not. One habit per row.
 
 **Done when:** it renders 365 cells at 360px wide without the page scrolling horizontally.
+
+**Result:** `src/lib/calendar.ts` covered by 13 unit tests — Monday-start columns, seven days per column, window coverage including both endpoints, leap-day arithmetic, and local-time parsing (`Date.parse` on a bare `YYYY-MM-DD` reads UTC and shifts the day west of GMT). The scroll container is the heatmap, never the page.
 
 ## V0-8 · Real-device verification
 

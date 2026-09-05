@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { today } from './lib/day'
 import { createHabit, toggleDay } from './lib/store'
-import { useCompletedOn, useHabits, useOutboxDepth } from './lib/useLocalStore'
+import { useCompletedOn, useCompletionsByHabit, useHabits, useOutboxDepth } from './lib/useLocalStore'
+import Heatmap from './Heatmap'
 import { useSync } from './lib/useSync'
 
 function syncLabel(status: ReturnType<typeof useSync>['status']): string {
@@ -17,6 +18,7 @@ export default function HabitList({ userId }: { userId: string }) {
   const day = today()
   const habits = useHabits(userId)
   const completed = useCompletedOn(userId, day)
+  const byHabit = useCompletionsByHabit(userId)
   const pending = useOutboxDepth()
   const { status, syncNow } = useSync(userId)
   const [name, setName] = useState('')
@@ -40,13 +42,16 @@ export default function HabitList({ userId }: { userId: string }) {
           const done = completed.has(h.id)
           return (
             <li key={h.id}>
-              <button
-                className={done ? 'cell cell--done' : 'cell'}
-                onClick={() => toggleDay(userId, h.id, day)}
-                aria-pressed={done}
-                aria-label={`${done ? 'Completed' : 'Not completed'}: ${h.name}`}
-              />
-              <span className={done ? 'habit-name habit-name--done' : 'habit-name'}>{h.name}</span>
+              <div className="habit-head">
+                <button
+                  className={done ? 'cell cell--done' : 'cell'}
+                  onClick={() => toggleDay(userId, h.id, day)}
+                  aria-pressed={done}
+                  aria-label={`${done ? 'Completed' : 'Not completed'} today: ${h.name}`}
+                />
+                <span className={done ? 'habit-name habit-name--done' : 'habit-name'}>{h.name}</span>
+              </div>
+              <Heatmap habit={h} today={day} completed={byHabit.get(h.id) ?? new Set()} />
             </li>
           )
         })}

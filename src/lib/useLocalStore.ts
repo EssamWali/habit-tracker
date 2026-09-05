@@ -44,3 +44,27 @@ export function useCompletedOn(userId: string | undefined, day: string) {
     new Set<string>(),
   )
 }
+
+/**
+ * Every Completion the user has, grouped by habit. One pass over the mirror is
+ * plenty at v0 scale — ten habits over five years is a few tens of thousands of
+ * tiny rows, and it keeps the heatmap a pure function of local state.
+ */
+export function useCompletionsByHabit(userId: string | undefined) {
+  return useLiveQuery(
+    async () => {
+      const map = new Map<string, Set<string>>()
+      if (!userId) return map
+      const rows = alive(await db.day_entries.where('user_id').equals(userId).toArray())
+      for (const r of rows) {
+        if (r.kind !== 'completed') continue
+        let set = map.get(r.habit_id)
+        if (!set) map.set(r.habit_id, (set = new Set()))
+        set.add(r.day)
+      }
+      return map
+    },
+    [userId],
+    new Map<string, Set<string>>(),
+  )
+}
