@@ -1,4 +1,6 @@
+import Dexie from 'dexie'
 import { db } from './db'
+import { today } from './day'
 import type { DayEntry, Habit, HabitSchedule, OutboxItem, SyncedTable } from './types'
 
 export const nowStamp = () => new Date().toISOString()
@@ -46,3 +48,49 @@ export const alive = <T extends { deleted_at: string | null }>(rows: T[] | undef
   (rows ?? []).filter(r => r.deleted_at === null)
 
 export const outboxDepth = () => db.outbox.count()
+
+/** Habits for a user, ordered by sort_order. */
+export const habitRange = (userId: string) =>
+  db.habits.where('[user_id+sort_order]').between([userId, Dexie.minKey], [userId, Dexie.maxKey])
+
+/**
+ * Create a habit and its initial schedule row.
+ *
+ * The next sort_order is read from the database inside the same transaction as
+ * the write, not from React state. Deriving it from a rendered list is a race:
+ * two quick taps both read the same stale count and collide.
+ *
+ * Every habit gets a habit_schedules row at effective_from = start_date, since
+ * ADR 0004 means there is no cadence anywhere else to fall back on.
+ */
+export async function createHabit(
+  userId: string,
+  opts: { name?: string; colour?: string } = {},
+): Promise<Habit> {
+  return db.transaction('rw', [db.habits, db.habit_schedules, db.outbox], async () => {
+    const last = await habitRange(userId).last()
+    const sort_order = last ? last.sort_order + 1 : 0
+    const start = today()
+    const stamp = nowStamp()
+
+    const habit: Habit = {
+      id: crypto.randomUUID(), user_id: userId,
+      name: opts.name ?? `Habit ${sort_order + 1}`,
+      colour: opts.colour ?? 'emerald',
+      start_date: start, archived_at: null, sort_order,
+      updated_at: stamp, deleted_at: null,
+    }
+    const schedule: HabitSchedule = {
+      id: crypto.randomUUID(), habit_id: habit.id, user_id: userId,
+      effective_from: start, cadence_type: 'daily',
+      weekdays: null, weekly_target: null, weight: 2,
+      updated_at: stamp, deleted_at: null,
+    }
+
+    await db.habits.put(habit)
+    await db.habit_schedules.put(schedule)
+    await db.outbox.put({ table: 'habits', key: habit.id, payload: habit, created_at: stamp })
+    await db.outbox.put({ table: 'habit_schedules', key: schedule.id, payload: schedule, created_at: stamp })
+    return habit
+  })
+}

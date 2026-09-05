@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
-import { alive } from './store'
+import { alive, habitRange } from './store'
 
 /**
  * Live reads straight from IndexedDB. These re-render on local writes with no
@@ -9,7 +9,9 @@ import { alive } from './store'
  */
 export function useHabits(userId: string | undefined) {
   return useLiveQuery(
-    async () => (userId ? alive(await db.habits.where('user_id').equals(userId).toArray()) : []),
+    // Ordered by the [user_id+sort_order] index. Querying by user_id alone
+    // would order by primary key, which is a random UUID.
+    async () => (userId ? alive(await habitRange(userId).toArray()) : []),
     [userId],
     [],
   )

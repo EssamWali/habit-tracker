@@ -2,13 +2,9 @@ import { useEffect, useState } from 'react'
 import { useSession } from './lib/useSession'
 import { supabase } from './lib/supabase'
 import { ensureUserScope } from './lib/db'
-import { putHabit, putSchedule } from './lib/store'
+import { createHabit } from './lib/store'
 import { useHabits, useOutboxDepth } from './lib/useLocalStore'
 import SignIn from './SignIn'
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function LocalStorePanel({ userId }: { userId: string }) {
   const habits = useHabits(userId)
@@ -17,20 +13,7 @@ function LocalStorePanel({ userId }: { userId: string }) {
   // Temporary: V0-6 replaces this with the real create-habit flow. It exists
   // now so V0-4's acceptance is observable — a write with the network disabled
   // must appear in the UI immediately and queue for later push.
-  async function addLocalHabit() {
-    const id = crypto.randomUUID()
-    const start = today()
-    await putHabit({
-      id, user_id: userId, name: `Habit ${habits.length + 1}`, colour: 'emerald',
-      start_date: start, archived_at: null, sort_order: habits.length,
-      updated_at: '', deleted_at: null,
-    })
-    await putSchedule({
-      id: crypto.randomUUID(), habit_id: id, user_id: userId, effective_from: start,
-      cadence_type: 'daily', weekdays: null, weekly_target: null, weight: 2,
-      updated_at: '', deleted_at: null,
-    })
-  }
+  const addLocalHabit = () => createHabit(userId)
 
   return (
     <div className="card">
