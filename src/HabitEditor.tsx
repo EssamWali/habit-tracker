@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PALETTE } from './lib/palette'
-import { setSchedule, updateHabit } from './lib/store'
+import { archiveHabit, removeHabit, restoreHabit, setSchedule, updateHabit } from './lib/store'
 import { OUT_OF_RANGE, resolveSchedule } from './lib/rules'
 import type { CadenceType, Day, Habit, HabitSchedule, Weight } from './lib/types'
 
@@ -32,14 +32,18 @@ export default function HabitEditor({
   const [weekdays, setWeekdays] = useState<number[]>(live?.weekdays ?? [1, 2, 3, 4, 5])
   const [target, setTarget] = useState<number>(live?.weekly_target ?? 3)
   const [weight, setWeight] = useState<Weight>(live?.weight ?? 2)
+  const [startDate, setStartDate] = useState(habit.start_date)
+  const [confirmText, setConfirmText] = useState('')
 
   const invalid = cadence === 'weekdays' && weekdays.length === 0
 
   async function save() {
     if (invalid) return
-    if (name.trim() && (name.trim() !== habit.name || colour !== habit.colour)) {
-      await updateHabit(habit, { name: name.trim(), colour })
-    }
+    const patch: Parameters<typeof updateHabit>[1] = {}
+    if (name.trim() && name.trim() !== habit.name) patch.name = name.trim()
+    if (colour !== habit.colour) patch.colour = colour
+    if (startDate && startDate !== habit.start_date) patch.start_date = startDate
+    if (Object.keys(patch).length) await updateHabit(habit, patch)
     await setSchedule(habit, {
       cadence_type: cadence,
       weekdays: cadence === 'weekdays' ? [...weekdays].sort((a, b) => a - b) : null,
@@ -124,14 +128,69 @@ export default function HabitEditor({
         </div>
       </div>
 
+      <label className="field">
+        <span>Tracking since</span>
+        <input
+          className="input"
+          type="date"
+          value={startDate}
+          max={today}
+          onChange={e => setStartDate(e.target.value)}
+        />
+      </label>
+
       <p className="muted note">
         Cadence and weight changes apply from today onward. Past days keep the
-        schedule they were actually judged under.
+        schedule they were actually judged under. Moving the start date earlier
+        opens those days up so a habit you have kept for months can be filled in.
       </p>
 
       <div className="editor-actions">
         <button className="btn" onClick={save} disabled={invalid}>Save</button>
         <button className="btn btn--quiet" onClick={onClose}>Cancel</button>
+      </div>
+
+      <div className="danger">
+        <span className="danger-title">Retiring this habit</span>
+
+        {habit.archived_at ? (
+          <>
+            <p className="muted">
+              Archived on {habit.archived_at}. History is intact and it stopped
+              accruing misses from that date.
+            </p>
+            <button className="btn btn--quiet" onClick={() => { restoreHabit(habit); onClose() }}>
+              Restore
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="muted">
+              Archiving keeps every day you have logged and simply stops the
+              habit from accruing misses. It is reversible; deleting is not.
+            </p>
+            <button className="btn btn--quiet" onClick={() => { archiveHabit(habit); onClose() }}>
+              Archive
+            </button>
+          </>
+        )}
+
+        <label className="field danger-confirm">
+          <span>To delete permanently, type the habit’s name</span>
+          <input
+            className="input"
+            value={confirmText}
+            onChange={e => setConfirmText(e.target.value)}
+            placeholder={habit.name}
+          />
+        </label>
+        <button
+          className="btn btn--danger"
+          disabled={confirmText !== habit.name}
+          onClick={() => { removeHabit(habit); onClose() }}
+        >
+          Delete permanently
+        </button>
       </div>
     </div>
   )

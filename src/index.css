@@ -17,6 +17,7 @@
   --cell-empty: #ebedf0;
   --cell-missed: #ebedf0;
   --cell-ghost: #f4f6f8;
+  --cell-void: #fbfcfd;
 
   /* Reserved: no habit may claim these. */
   --gold: #d4a017;
@@ -63,6 +64,7 @@
   --cell-empty: #21262d;
   --cell-missed: #21262d;
   --cell-ghost: #161b22;
+  --cell-void: #11161d;
 
   --gold: #e3b341;
   --gold-ring: #f0d68a;
@@ -80,7 +82,7 @@
     color-scheme: dark;
     --bg: #0d1117; --surface: #151b23; --fg: #e6edf3; --muted: #9198a1;
     --line: #3d444d; --danger: #ff9a5a; --ok: #3fb950;
-    --cell-empty: #21262d; --cell-missed: #21262d; --cell-ghost: #161b22;
+    --cell-empty: #21262d; --cell-missed: #21262d; --cell-ghost: #161b22; --cell-void: #11161d;
     --gold: #e3b341; --gold-ring: #f0d68a;
     --agg-1: #2f3742; --agg-2: #4e5966; --agg-3: #7d8792; --agg-4: #e6edf3;
   }
@@ -195,8 +197,12 @@ body {
 .hcell--completed { background: var(--habit-hue); }
 .hcell--frozen { background: var(--habit-hue); opacity: 0.4; }
 .hcell--missed { background: var(--cell-missed); }
-.hcell--unscheduled { background: var(--cell-ghost); box-shadow: inset 0 0 0 1px var(--cell-empty); }
-.hcell--out { background: var(--cell-ghost); }
+/* Three distinguishable non-completed states, in descending emphasis:
+   missed is a solid square (owed, not done); unscheduled is hollow — an
+   outline only, so it reads as "never asked of you"; out-of-range is a barely
+   visible fill that keeps the lattice intact without drawing the eye. */
+.hcell--unscheduled { background: transparent; box-shadow: inset 0 0 0 1.5px var(--cell-empty); }
+.hcell--out { background: var(--cell-void); }
 
 /* Gold replaces the habit's own colour once a run reaches threshold. The
    second tier adds a ring rather than a fourteenth hue. */
@@ -290,3 +296,18 @@ body {
 /* Past cells are interactive but out of the tab order; V1-11 adds roving
    arrow-key navigation over the grid. */
 .hcell--pick { cursor: pointer; padding: 0; border: 0; }
+
+.danger { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+.danger-title { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 8px; }
+.danger .muted { font-size: 0.8125rem; margin-bottom: 10px; }
+.danger .btn { width: auto; }
+.danger-confirm { margin-top: 16px; }
+.btn--danger { background: transparent; color: var(--danger); border-color: var(--danger); margin-top: 8px; }
+.btn--danger:disabled { color: var(--muted); border-color: var(--line); }
+
+.badge {
+  flex: none; font-size: 0.625rem; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px;
+}
+.archived-toggle { display: flex; align-items: center; gap: 5px; font-size: 0.6875rem; color: var(--muted); cursor: pointer; }
+.card-head { gap: 10px; }

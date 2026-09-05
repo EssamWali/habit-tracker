@@ -8,12 +8,16 @@ import { alive, habitRange } from './store'
  * network involvement, which is the whole point of V0-4: the UI is a view over
  * the mirror, and sync is something that happens to the mirror behind it.
  */
-export function useHabits(userId: string | undefined) {
+export function useHabits(userId: string | undefined, includeArchived = false) {
   return useLiveQuery(
     // Ordered by the [user_id+sort_order] index. Querying by user_id alone
     // would order by primary key, which is a random UUID.
-    async () => (userId ? alive(await habitRange(userId).toArray()) : []),
-    [userId],
+    async () => {
+      if (!userId) return []
+      const rows = alive(await habitRange(userId).toArray())
+      return includeArchived ? rows : rows.filter(h => h.archived_at === null)
+    },
+    [userId, includeArchived],
     [],
   )
 }

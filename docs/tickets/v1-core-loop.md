@@ -136,12 +136,20 @@ Past Cells are buttons but held out of the tab order; V1-11 adds roving arrow-ke
 **Done when:** a past day can be corrected on a phone without mis-taps — which
 means the target is the detail sheet, not a 10px square.
 
-## V1-9 · Archive, delete, start date
+## V1-9 · Archive, delete, start date ✅
 
 Archive keeps history and stops accruing Misses from the archive date; it is
 reversible, and pausing is archive-then-restore rather than a third concept.
 Delete is irreversible and needs a typed confirmation. Start Date is editable so
 a long-running habit can be backdated.
+
+**Result:** the editor now carries a **Tracking since** date (capped at today), an **Archive / Restore** action, and a **Delete** that requires typing the habit's name. The quick `×` was removed from the row: archive is the reversible default and deletion should not be one stray tap away.
+
+Archived habits leave the dashboard but are revealed by a **Show archived** toggle and can be restored.
+
+Pulled forward ahead of V1-10 because every habit started today, so every Cell was out-of-range and none of V1-4 through V1-8 could actually be evaluated. Backdating a start date is what makes the rules visible.
+
+Also fixed here: `unscheduled` and `out_of_range` had near-identical shades, so a weekday habit looked as though its cadence were being ignored. The three non-completed states are now distinct — missed is a solid square, unscheduled is a hollow outline, out-of-range is a barely visible fill that keeps the lattice without drawing the eye.
 
 **Done when:** an archived habit disappears from the dashboard, keeps its
 history, and stops affecting the Aggregate denominator from its archive date.

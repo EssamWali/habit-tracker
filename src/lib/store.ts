@@ -164,3 +164,8 @@ export async function setSchedule(
     await db.outbox.put({ table: 'habit_schedules', key: row.id, payload: row, created_at: stamp })
   })
 }
+
+/** Archive: history preserved, Misses stop accruing from today, reversible. */
+export const archiveHabit = (habit: Habit) => updateHabit(habit, { archived_at: today() })
+
+export const restoreHabit = (habit: Habit) => updateHabit(habit, { archived_at: null })

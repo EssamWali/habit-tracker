@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { today as todayFn } from './lib/day'
-import { createHabit, removeHabit, toggleDay } from './lib/store'
+import { createHabit, toggleDay } from './lib/store'
 import { useEntriesByHabit, useHabits, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
 import { useTheme } from './lib/theme'
@@ -35,7 +35,8 @@ function cadenceSummary(habit: Habit, schedules: readonly HabitSchedule[], today
 
 export default function HabitList({ userId }: { userId: string }) {
   const day = todayFn()
-  const habits = useHabits(userId)
+  const [showArchived, setShowArchived] = useState(false)
+  const habits = useHabits(userId, showArchived)
   const schedules = useSchedules(userId)
   const entriesByHabit = useEntriesByHabit(userId)
   const pending = useOutboxDepth()
@@ -66,6 +67,10 @@ export default function HabitList({ userId }: { userId: string }) {
     <div className="card">
       <div className="card-head">
         <h2>Today · {day}</h2>
+        <label className="archived-toggle">
+          <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
+          Show archived
+        </label>
         <div className="seg seg--small" role="group" aria-label="Heatmap range">
           {(['month', 'quarter', 'year'] as Range[]).map(r => (
             <button key={r} aria-pressed={range === r} onClick={() => chooseRange(r)}>
@@ -103,11 +108,7 @@ export default function HabitList({ userId }: { userId: string }) {
                   {h.name}
                   <span className="cadence">{cadenceSummary(h, schedules, day)}</span>
                 </button>
-                <button
-                  className="remove"
-                  aria-label={`Delete ${h.name}`}
-                  onClick={() => { if (confirm(`Delete "${h.name}" and all its history?`)) removeHabit(h) }}
-                >×</button>
+                {h.archived_at && <span className="badge">archived</span>}
               </div>
 
               <Heatmap
