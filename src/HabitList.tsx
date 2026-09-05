@@ -9,6 +9,7 @@ import { OUT_OF_RANGE, resolveSchedule } from './lib/rules'
 import type { EntryKind, Habit, HabitSchedule } from './lib/types'
 import Heatmap, { type Range } from './Heatmap'
 import HabitEditor from './HabitEditor'
+import AggregateHeatmap from './AggregateHeatmap'
 
 function syncLabel(status: ReturnType<typeof useSync>['status']): string {
   switch (status.state) {
@@ -73,6 +74,16 @@ export default function HabitList({ userId }: { userId: string }) {
       </div>
 
       {habits.length === 0 && <p className="muted">No habits yet. Add one below.</p>}
+
+      {habits.length > 0 && (
+        <AggregateHeatmap
+          habits={habits}
+          schedules={schedules}
+          entriesByHabit={entriesByHabit}
+          today={day}
+          range={range}
+        />
+      )}
 
       <ul className="habits">
         {habits.map(h => {

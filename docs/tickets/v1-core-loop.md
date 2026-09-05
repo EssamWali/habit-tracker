@@ -110,10 +110,14 @@ threshold, and the second-tier treatment at 30 days / 12 weeks.
 **Done when:** a habit with a weekday cadence shows blanks — not grey misses —
 on days it was never scheduled.
 
-## V1-7 · Aggregate heatmap
+## V1-7 · Aggregate heatmap ✅
 
 One grid over all habits, the only one with graduated shading, using R5. Perfect
 Days get a distinct treatment above the top band. Pinned above the habit list.
+
+**Result:** one grid over all habits, shaded by R5's weighted ratio, with Perfect Days in gold above the top band and a legend. Neutral days — nothing scheduled — use the ghost shade rather than the empty shade, so a rest day is visibly different from a day where everything was owed and nothing done.
+
+It follows the same Month / Quarter / Year toggle as the habit heatmaps rather than being pinned to a year. Two grids showing different spans at once is confusing, and one control is a simpler model than two.
 
 **Done when:** it reads correctly on a day mixing a completed Unskippable habit
 with a missed Minor one — the weighting must be visible, not merely implemented.
