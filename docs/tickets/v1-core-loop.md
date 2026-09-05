@@ -51,11 +51,13 @@ state); thresholds are cadence-relative — 7/30 consecutive completions for
 daily and weekday habits, 4/12 consecutive quota-meeting weeks for weekly ones;
 and a Freeze preserves a run without extending it.
 
-## V1-3 · R5 — aggregate ratio
+## V1-3 · R5 — aggregate ratio ✅
 
 Weighted ratio per day: `sum(weight of completed scheduled) ÷ sum(weight of
 scheduled)`, weights resolved as of that day. Four bands. Zero denominator
 renders neutral, never 0%.
+
+**Result:** 10 further tests, 63 passing overall. The Perfect Day trap is covered directly: a scheduled habit missed alongside an unscheduled one completed produces `ratio === 1` while `isPerfectDay === false`.
 
 **Done when:** tests prove a Freeze counts toward the denominator but never the
 numerator; bonus completions on unscheduled habits raise the numerator and clamp

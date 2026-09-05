@@ -270,3 +270,88 @@ function weeklyUnits(
   }
   return units
 }
+
+/* ------------------------------------------------------------------ R5 --- */
+
+export interface HabitData {
+  habit: Habit
+  entries: ReadonlyMap<Day, EntryKind>
+  completed: ReadonlySet<Day>
+}
+
+export interface AggregateResult {
+  /** Weighted completion, clamped to 1. Meaningless when `neutral`. */
+  ratio: number
+  /** 0 = owed but nothing done; 1–4 = shading bands. */
+  band: 0 | 1 | 2 | 3 | 4
+  /** Nothing was scheduled: a rest day, not a failure. */
+  neutral: boolean
+  scheduledWeight: number
+  completedWeight: number
+  isPerfectDay: boolean
+}
+
+/**
+ * R5 · The Aggregate Heatmap's intensity for one Day.
+ *
+ * Weighted: `sum(weight of completed scheduled) / sum(weight of scheduled)`,
+ * with every weight resolved as of that Day (ADR 0004).
+ *
+ * - A Freeze counts toward the denominator but never the numerator. It keeps a
+ *   Streak alive; it is not a Completion.
+ * - Completing an unscheduled habit is a bonus: it raises the numerator without
+ *   touching the denominator, and the ratio clamps at 1.
+ * - A Day with nothing scheduled is neutral, never 0%. Rest days are not
+ *   failures.
+ *
+ * `isPerfectDay` is structural rather than `ratio >= 1`. Bonus completions can
+ * lift the numerator to meet the denominator while a scheduled habit was
+ * genuinely missed, and that must not read as perfect.
+ */
+export function aggregate(
+  data: readonly HabitData[],
+  schedules: readonly HabitSchedule[],
+  day: Day,
+  today: Day,
+): AggregateResult {
+  let scheduledWeight = 0
+  let completedWeight = 0
+  let anyScheduledMissed = false
+
+  for (const { habit, entries, completed } of data) {
+    const s = resolveSchedule(habit, schedules, day, today)
+    if (s === OUT_OF_RANGE) continue
+
+    const scheduled = isScheduled(habit, schedules, day, today, completed)
+    const kind = entries.get(day)
+    const isDone = kind === 'completed'
+
+    if (scheduled) {
+      scheduledWeight += s.weight
+      if (isDone) completedWeight += s.weight
+      else anyScheduledMissed = true
+    } else if (isDone) {
+      completedWeight += s.weight       // bonus: numerator only
+    }
+  }
+
+  const neutral = scheduledWeight === 0
+  const ratio = neutral ? 0 : Math.min(1, completedWeight / scheduledWeight)
+
+  return {
+    ratio,
+    band: neutral ? 0 : bandFor(ratio),
+    neutral,
+    scheduledWeight,
+    completedWeight,
+    isPerfectDay: !neutral && !anyScheduledMissed,
+  }
+}
+
+function bandFor(ratio: number): 0 | 1 | 2 | 3 | 4 {
+  if (ratio <= 0) return 0
+  if (ratio <= 0.25) return 1
+  if (ratio <= 0.5) return 2
+  if (ratio <= 0.75) return 3
+  return 4
+}

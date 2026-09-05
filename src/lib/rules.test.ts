@@ -275,3 +275,102 @@ describe('R4 · streaks — cadence change', () => {
     expect(r.gold.size).toBe(14)
   })
 })
+
+import { aggregate, type HabitData } from './rules'
+
+const DAY: Day = '2026-09-02' // a Wednesday
+
+function hd(id: string, opts: {
+  weight?: 1 | 2 | 3
+  cadence?: 'daily' | 'weekdays'
+  weekdays?: number[]
+  done?: boolean
+  frozen?: boolean
+} = {}): { data: HabitData; schedule: HabitSchedule } {
+  const h = habit({ id, start_date: '2026-01-01' })
+  const entries = new Map<Day, EntryKind>()
+  if (opts.done) entries.set(DAY, 'completed')
+  if (opts.frozen) entries.set(DAY, 'frozen')
+  return {
+    data: { habit: h, entries, completed: new Set(opts.done ? [DAY] : []) },
+    schedule: schedule({
+      habit_id: id,
+      cadence_type: opts.cadence ?? 'daily',
+      weekdays: opts.weekdays ?? null,
+      weight: (opts.weight ?? 2) as Weight,
+    }),
+  }
+}
+
+const agg = (parts: ReturnType<typeof hd>[]) =>
+  aggregate(parts.map(p => p.data), parts.map(p => p.schedule), DAY, TODAY)
+
+describe('R5 · aggregate', () => {
+  it('is neutral, not zero, when nothing is scheduled', () => {
+    const r = agg([hd('a', { cadence: 'weekdays', weekdays: [6, 7] })]) // weekend-only
+    expect(r.neutral).toBe(true)
+    expect(r.scheduledWeight).toBe(0)
+  })
+
+  it('weights the ratio', () => {
+    // Unskippable done (3), Minor missed (1) -> 3/4
+    const r = agg([hd('a', { weight: 3, done: true }), hd('b', { weight: 1 })])
+    expect(r.ratio).toBeCloseTo(0.75)
+    expect(r.band).toBe(3)
+  })
+
+  it('counts a Freeze in the denominator but never the numerator', () => {
+    const r = agg([hd('a', { weight: 2, done: true }), hd('b', { weight: 2, frozen: true })])
+    expect(r.scheduledWeight).toBe(4)
+    expect(r.completedWeight).toBe(2)
+    expect(r.ratio).toBeCloseTo(0.5)
+  })
+
+  it('treats an unscheduled completion as a bonus and clamps at 1', () => {
+    const r = agg([
+      hd('a', { weight: 2, done: true }),
+      hd('b', { weight: 3, cadence: 'weekdays', weekdays: [6, 7], done: true }), // not scheduled today
+    ])
+    expect(r.scheduledWeight).toBe(2)
+    expect(r.completedWeight).toBe(5)
+    expect(r.ratio).toBe(1)
+  })
+
+  it('awards a Perfect Day when every scheduled habit is done', () => {
+    const r = agg([hd('a', { done: true }), hd('b', { weight: 3, done: true })])
+    expect(r.isPerfectDay).toBe(true)
+  })
+
+  // The trap: ratio hits 1.0 via a bonus while a scheduled habit was missed.
+  it('does NOT award a Perfect Day when a bonus masks a missed habit', () => {
+    const r = agg([
+      hd('a', { weight: 2 }),                                                   // scheduled, missed
+      hd('b', { weight: 2, cadence: 'weekdays', weekdays: [6, 7], done: true }), // bonus
+    ])
+    expect(r.ratio).toBe(1)          // the ratio alone would say "perfect"
+    expect(r.isPerfectDay).toBe(false)
+  })
+
+  it('does not award a Perfect Day when a habit was frozen rather than done', () => {
+    const r = agg([hd('a', { done: true }), hd('b', { frozen: true })])
+    expect(r.isPerfectDay).toBe(false)
+  })
+
+  it('never awards a Perfect Day on a neutral day', () => {
+    expect(agg([hd('a', { cadence: 'weekdays', weekdays: [6, 7] })]).isPerfectDay).toBe(false)
+  })
+
+  it('bands the ratio', () => {
+    expect(agg([hd('a'), hd('b'), hd('c'), hd('d')]).band).toBe(0)
+    expect(agg([hd('a', { done: true }), hd('b'), hd('c'), hd('d')]).band).toBe(1)
+    expect(agg([hd('a', { done: true }), hd('b', { done: true }), hd('c'), hd('d')]).band).toBe(2)
+    expect(agg([hd('a', { done: true }), hd('b', { done: true }), hd('c', { done: true }), hd('d')]).band).toBe(3)
+    expect(agg([hd('a', { done: true }), hd('b', { done: true }), hd('c', { done: true }), hd('d', { done: true })]).band).toBe(4)
+  })
+
+  it('ignores habits that are out of range on the day', () => {
+    const future = hd('a', { done: true })
+    future.data.habit.start_date = '2026-09-10'
+    expect(agg([future]).neutral).toBe(true)
+  })
+})
