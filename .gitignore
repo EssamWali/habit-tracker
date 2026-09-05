@@ -4,7 +4,7 @@ dev-dist/
 .vercel/
 *.local
 .DS_Store
-# pasted screenshots — shared with Claude, never committed
+# pasted screenshots: shared with Claude, never committed
 Screenshot*.png
 screenshots/
 
