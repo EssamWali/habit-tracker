@@ -320,3 +320,12 @@ body {
 /* Today, when the habit is not scheduled for it: still located, never implied
    to be actionable. */
 .hcell--today-off { outline: 1.5px dashed var(--line); outline-offset: 1.5px; }
+
+.reorder { display: flex; gap: 2px; flex: none; }
+.reorder button {
+  border: 1px solid var(--line); background: transparent; color: var(--muted);
+  border-radius: 5px; width: 24px; height: 24px; line-height: 1;
+  font: inherit; font-size: 0.75rem; cursor: pointer; padding: 0;
+}
+.reorder button:disabled { opacity: 0.35; cursor: default; }
+.reorder button:hover:not(:disabled) { color: var(--fg); }

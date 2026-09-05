@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { today as todayFn } from './lib/day'
-import { createHabit, toggleDay } from './lib/store'
+import { createHabit, moveHabit, toggleDay } from './lib/store'
 import { useEntriesByHabit, useHabits, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
 import { useTheme } from './lib/theme'
@@ -93,7 +93,7 @@ export default function HabitList({ userId }: { userId: string }) {
       )}
 
       <ul className="habits">
-        {habits.map(h => {
+        {habits.map((h, i) => {
           const entries = entriesByHabit.get(h.id) ?? new Map<string, EntryKind>()
           const open = editing === h.id
           return (
@@ -109,6 +109,18 @@ export default function HabitList({ userId }: { userId: string }) {
                   <span className="cadence">{cadenceSummary(h, schedules, day)}</span>
                 </button>
                 {h.archived_at && <span className="badge">archived</span>}
+                <div className="reorder">
+                  <button
+                    aria-label={`Move ${h.name} up`}
+                    disabled={i === 0}
+                    onClick={() => moveHabit(habits, h.id, -1)}
+                  >↑</button>
+                  <button
+                    aria-label={`Move ${h.name} down`}
+                    disabled={i === habits.length - 1}
+                    onClick={() => moveHabit(habits, h.id, 1)}
+                  >↓</button>
+                </div>
               </div>
 
               <Heatmap

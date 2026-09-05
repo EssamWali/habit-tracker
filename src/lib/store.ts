@@ -169,3 +169,37 @@ export async function setSchedule(
 export const archiveHabit = (habit: Habit) => updateHabit(habit, { archived_at: today() })
 
 export const restoreHabit = (habit: Habit) => updateHabit(habit, { archived_at: null })
+
+/**
+ * Move a Habit one place up or down.
+ *
+ * Every position is rewritten sequentially rather than swapping two rows, so
+ * sort_order stays a dense 0..n-1 sequence and cannot drift into ties after
+ * repeated moves.
+ *
+ * Concurrent reordering on two offline devices is the one case per-row
+ * last-write-wins handles poorly: the rows are independent keys, so halves of
+ * two different orderings can interleave into a third. It resolves to a stable
+ * order rather than corrupting anything, and re-ordering fixes it — an
+ * acceptable cost for a preference that is cheap to restate.
+ */
+export async function moveHabit(habits: readonly Habit[], id: string, delta: -1 | 1): Promise<void> {
+  const index = habits.findIndex(h => h.id === id)
+  const target = index + delta
+  if (index < 0 || target < 0 || target >= habits.length) return
+
+  const next = [...habits]
+  const [moved] = next.splice(index, 1)
+  next.splice(target, 0, moved!)
+
+  await db.transaction('rw', [db.habits, db.outbox], async () => {
+    const stamp = nowStamp()
+    for (let i = 0; i < next.length; i++) {
+      const habit = next[i]!
+      if (habit.sort_order === i) continue
+      const row: Habit = { ...habit, sort_order: i, updated_at: stamp }
+      await db.habits.put(row)
+      await db.outbox.put({ table: 'habits', key: row.id, payload: row, created_at: stamp })
+    }
+  })
+}

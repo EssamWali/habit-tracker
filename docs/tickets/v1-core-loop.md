@@ -154,9 +154,15 @@ Also fixed here: `unscheduled` and `out_of_range` had near-identical shades, so 
 **Done when:** an archived habit disappears from the dashboard, keeps its
 history, and stops affecting the Aggregate denominator from its archive date.
 
-## V1-10 · Reordering
+## V1-10 · Reordering ✅
 
 Drag to reorder, writing `sort_order`. Flat list, no grouping (Q20).
+
+**Result:** up/down buttons rather than drag. Each habit row contains a horizontally-scrolling heatmap, so a touch drag beginning anywhere useful is ambiguous between reordering, scrolling the page, and scrolling the heatmap. Buttons avoid the ambiguity and are keyboard-operable without extra work.
+
+Positions are rewritten sequentially rather than swapping two rows, so `sort_order` stays a dense `0..n-1` sequence and cannot drift into ties.
+
+Recorded limitation: concurrent reordering on two offline devices is the one case per-row last-write-wins handles poorly, since the rows are independent keys and halves of two orderings can interleave. It converges on a stable order rather than corrupting data, and re-ordering fixes it.
 
 **Done when:** an order set on desktop survives a sync and appears on the phone.
 
