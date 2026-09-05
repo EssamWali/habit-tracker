@@ -127,3 +127,25 @@ h1 { font-size: 1.25rem; margin: 0 0 4px; }
   font-size: 0.8125rem;
   margin: 10px 0 0;
 }
+
+.card + .card { margin-top: 16px; }
+
+.stats {
+  display: flex;
+  gap: 24px;
+  margin: 0 0 14px;
+}
+
+.stats div { margin: 0; }
+.stats dt { color: var(--muted); font-size: 0.75rem; }
+.stats dd { margin: 2px 0 0; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+
+.list {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  font-size: 0.875rem;
+}
+
+.list li { margin: 2px 0; }
+
+.note { font-size: 0.75rem; margin: 12px 0 0; }
