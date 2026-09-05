@@ -1,78 +1,92 @@
-import { useEffect, useRef } from 'react'
-import { buildGrid, daysBetween } from './lib/calendar'
-import type { Day, Habit } from './lib/types'
+import { useEffect, useMemo, useRef } from 'react'
+import { buildGrid } from './lib/calendar'
+import { cellState, streaks } from './lib/rules'
+import type { Day, EntryKind, Habit, HabitSchedule } from './lib/types'
 
-// All seven, single letters. GitHub labels only alternate rows to avoid
-// crowding, but that reads as 'only three days are shown'.
 const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-type CellState = 'completed' | 'empty' | 'out'
-
-function cellState(day: Day, habit: Habit, today: Day, completed: Set<Day>): CellState {
-  // Out-of-range covers both ends: before the Habit's Start Date, and the
-  // future days that pad the final column.
-  if (daysBetween(day, today) < 0) return 'out'
-  if (daysBetween(habit.start_date, day) < 0) return 'out'
-  if (habit.archived_at && daysBetween(habit.archived_at, day) >= 0) return 'out'
-  return completed.has(day) ? 'completed' : 'empty'
-}
+export type Range = 'month' | 'quarter' | 'year'
+export const RANGE_DAYS: Record<Range, number> = { month: 35, quarter: 91, year: 365 }
 
 export default function Heatmap({
-  habit, today, completed, onToggle,
-}: { habit: Habit; today: Day; completed: Set<Day>; onToggle: (day: Day) => void }) {
+  habit, schedules, entries, today, range, onToggle,
+}: {
+  habit: Habit
+  schedules: readonly HabitSchedule[]
+  entries: ReadonlyMap<Day, EntryKind>
+  today: Day
+  range: Range
+  onToggle: (day: Day) => void
+}) {
   const scroller = useRef<HTMLDivElement>(null)
-  const { weeks, monthLabels } = buildGrid(today, 365)
+  const { weeks, monthLabels } = useMemo(
+    () => buildGrid(today, RANGE_DAYS[range]), [today, range])
 
-  // Pin to the right edge: the interesting end of a rolling window is now.
+  const completed = useMemo(() => {
+    const s = new Set<Day>()
+    for (const [d, k] of entries) if (k === 'completed') s.add(d)
+    return s
+  }, [entries])
+
+  // Streaks are computed over full history, not just the visible window: a run
+  // that began before the window still gilds the part you can see.
+  const { gold, tier2 } = useMemo(
+    () => streaks(habit, schedules, entries, today), [habit, schedules, entries, today])
+
   useEffect(() => {
     const el = scroller.current
     if (el) el.scrollLeft = el.scrollWidth
   }, [weeks.length])
 
   return (
-    <div className="heatmap-row">
-      <div className="heatmap-scroll" ref={scroller}>
-        <div className="heatmap-inner">
-          <div className="heatmap-months" style={{ gridTemplateColumns: `repeat(${weeks.length}, var(--cell-step))` }}>
-            {monthLabels.map(m => (
-              <span key={m.column} style={{ gridColumnStart: m.column + 1 }}>{m.label}</span>
-            ))}
+    <div className="heatmap-scroll" ref={scroller}>
+      <div className="heatmap-inner">
+        <div className="heatmap-months" style={{ gridTemplateColumns: `repeat(${weeks.length}, var(--cell-step))` }}>
+          {monthLabels.map(m => (
+            <span key={m.column} style={{ gridColumnStart: m.column + 1 }}>{m.label}</span>
+          ))}
+        </div>
+
+        <div className="heatmap-body">
+          <div className="heatmap-weekdays">
+            {WEEKDAY_LABELS.map((l, i) => <span key={i}>{l}</span>)}
           </div>
 
-          <div className="heatmap-body">
-            <div className="heatmap-weekdays">
-              {WEEKDAY_LABELS.map((l, i) => <span key={i}>{l}</span>)}
-            </div>
+          <div className="heatmap-grid">
+            {weeks.flat().map(day => {
+              const state = cellState(habit, schedules, day, today, entries, completed)
+              const gilded = state === 'completed' && gold.has(day)
+              const cls = [
+                'hcell',
+                `hcell--${state === 'out_of_range' ? 'out' : state}`,
+                gilded ? (tier2.has(day) ? 'hcell--tier2' : 'hcell--gold') : '',
+                day === today ? 'hcell--today' : '',
+              ].filter(Boolean).join(' ')
 
-            <div className="heatmap-grid">
-              {/* grid-auto-flow: column with 7 explicit rows places these
-                  automatically — each run of 7 fills one column. buildGrid
-                  guarantees exactly 7 per week, which the tests assert. */}
-              {weeks.flat().map(day => {
-                const state = cellState(day, habit, today, completed)
-                const label = state === 'out' ? day : `${day} — ${state === 'completed' ? 'done' : 'not done'}`
+              const title = state === 'out_of_range' ? day : `${day} — ${describe(state, gilded)}`
 
-                // Today is the only interactive Cell in v0. Backfilling any past
-                // day is settled design (Q14) but needs a bigger tap target than
-                // a 10px square, so it waits for v1.
-                if (day === today) {
-                  return (
-                    <button
-                      key={day}
-                      className={`hcell hcell--${state} hcell--today`}
-                      onClick={() => onToggle(day)}
-                      aria-pressed={state === 'completed'}
-                      aria-label={`${habit.name}, today: ${state === 'completed' ? 'done' : 'not done'}`}
-                      title={label}
-                    />
-                  )
-                }
-                return <i key={day} className={`hcell hcell--${state}`} title={label} />
-              })}
-            </div>
+              if (day === today) {
+                return (
+                  <button
+                    key={day} className={cls} title={title}
+                    onClick={() => onToggle(day)}
+                    aria-pressed={state === 'completed'}
+                    aria-label={`${habit.name}, today: ${describe(state, gilded)}`}
+                  />
+                )
+              }
+              return <i key={day} className={cls} title={title} />
+            })}
           </div>
         </div>
       </div>
     </div>
   )
+}
+
+function describe(state: string, gilded: boolean): string {
+  if (state === 'completed') return gilded ? 'done, on a streak' : 'done'
+  if (state === 'frozen') return 'frozen'
+  if (state === 'missed') return 'missed'
+  return 'not scheduled'
 }

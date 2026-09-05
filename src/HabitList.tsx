@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { today as todayFn } from './lib/day'
 import { createHabit, removeHabit, toggleDay } from './lib/store'
-import { useCompletionsByHabit, useHabits, useOutboxDepth, useSchedules } from './lib/useLocalStore'
+import { useEntriesByHabit, useHabits, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
 import { useTheme } from './lib/theme'
 import { hueValue } from './lib/palette'
 import { OUT_OF_RANGE, resolveSchedule } from './lib/rules'
-import type { Habit, HabitSchedule } from './lib/types'
-import Heatmap from './Heatmap'
+import type { EntryKind, Habit, HabitSchedule } from './lib/types'
+import Heatmap, { type Range } from './Heatmap'
 import HabitEditor from './HabitEditor'
 
 function syncLabel(status: ReturnType<typeof useSync>['status']): string {
@@ -35,12 +35,21 @@ export default function HabitList({ userId }: { userId: string }) {
   const day = todayFn()
   const habits = useHabits(userId)
   const schedules = useSchedules(userId)
-  const byHabit = useCompletionsByHabit(userId)
+  const entriesByHabit = useEntriesByHabit(userId)
   const pending = useOutboxDepth()
   const { status, syncNow } = useSync(userId)
   const { resolved } = useTheme()
   const [name, setName] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
+  const [range, setRange] = useState<Range>(() => {
+    try { const v = localStorage.getItem('range'); if (v === 'month' || v === 'quarter' || v === 'year') return v } catch { /* blocked */ }
+    return 'month'
+  })
+
+  const chooseRange = (r: Range) => {
+    try { localStorage.setItem('range', r) } catch { /* blocked */ }
+    setRange(r)
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
@@ -52,13 +61,22 @@ export default function HabitList({ userId }: { userId: string }) {
 
   return (
     <div className="card">
-      <h2>Today · {day}</h2>
+      <div className="card-head">
+        <h2>Today · {day}</h2>
+        <div className="seg seg--small" role="group" aria-label="Heatmap range">
+          {(['month', 'quarter', 'year'] as Range[]).map(r => (
+            <button key={r} aria-pressed={range === r} onClick={() => chooseRange(r)}>
+              {r === 'month' ? 'Month' : r === 'quarter' ? 'Quarter' : 'Year'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {habits.length === 0 && <p className="muted">No habits yet. Add one below.</p>}
 
       <ul className="habits">
         {habits.map(h => {
-          const doneDays = byHabit.get(h.id) ?? new Set<string>()
+          const entries = entriesByHabit.get(h.id) ?? new Map<string, EntryKind>()
           const open = editing === h.id
           return (
             <li key={h.id} style={{ '--habit-hue': hueValue(h.colour, resolved) } as React.CSSProperties}>
@@ -81,8 +99,10 @@ export default function HabitList({ userId }: { userId: string }) {
 
               <Heatmap
                 habit={h}
+                schedules={schedules}
+                entries={entries}
                 today={day}
-                completed={doneDays}
+                range={range}
                 onToggle={d => toggleDay(userId, h.id, d)}
               />
 

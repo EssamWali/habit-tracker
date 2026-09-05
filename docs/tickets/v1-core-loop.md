@@ -97,11 +97,15 @@ Taken out of order, ahead of V1-4: the habit editor needs a colour picker, and b
 can be confused with gold or with the empty-cell grey, and the override persists
 across a reload.
 
-## V1-6 · Habit heatmap
+## V1-6 · Habit heatmap ✅
 
 Replace v0's two-tone grid with real Cell states: habit colour for completed,
 grey for missed, blank for unscheduled and out-of-range, gold for runs past
 threshold, and the second-tier treatment at 30 days / 12 weeks.
+
+**Result:** cells now render real R3 states — completed, frozen, missed, unscheduled, out-of-range — with gold and the second tier from R4. Streaks are computed over full history rather than the visible window, so a run that began before the window still gilds the part you can see.
+
+**Range toggle added (Month / Quarter / Year, default Month), amending Q17.** A rolling year stacked once per habit takes far too much vertical space and forces horizontal scrolling on every row. The year view is kept as an option and remains the default for the Aggregate in V1-7, where there is only one of it and the year wall earns its space.
 
 **Done when:** a habit with a weekday cadence shows blanks — not grey misses —
 on days it was never scheduled.

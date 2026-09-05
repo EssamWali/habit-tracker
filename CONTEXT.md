@@ -83,7 +83,7 @@ One square in a heatmap, representing one Habit on one Day. A Cell is in exactly
 _Avoid_: Square, box, tile, dot
 
 **Habit Heatmap**:
-The calendar grid for a single Habit, showing its Cells across the tracked period.
+The calendar grid for a single Habit, showing its Cells across a chosen range — a month, a quarter, or a year.
 _Avoid_: Individual heatmap, per-habit chart
 
 **Aggregate Heatmap**:

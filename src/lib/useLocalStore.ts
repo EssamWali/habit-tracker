@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
+import type { EntryKind } from './types'
 import { alive, habitRange } from './store'
 
 /**
@@ -75,5 +76,23 @@ export function useSchedules(userId: string | undefined) {
     async () => (userId ? alive(await db.habit_schedules.where('user_id').equals(userId).toArray()) : []),
     [userId],
     [],
+  )
+}
+
+/** Every entry, grouped by habit and keyed by day — what R3 and R4 consume. */
+export function useEntriesByHabit(userId: string | undefined) {
+  return useLiveQuery(
+    async () => {
+      const map = new Map<string, Map<string, EntryKind>>()
+      if (!userId) return map
+      for (const r of alive(await db.day_entries.where('user_id').equals(userId).toArray())) {
+        let inner = map.get(r.habit_id)
+        if (!inner) map.set(r.habit_id, (inner = new Map()))
+        inner.set(r.day, r.kind)
+      }
+      return map
+    },
+    [userId],
+    new Map<string, Map<string, EntryKind>>(),
   )
 }

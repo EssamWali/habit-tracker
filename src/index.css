@@ -229,3 +229,7 @@ body {
   display: flex; align-items: baseline; gap: 8px;
 }
 .cadence { font-size: 0.6875rem; color: var(--muted); }
+
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.card-head h2 { margin: 0; }
+.seg--small button { padding: 4px 9px; font-size: 0.6875rem; }
