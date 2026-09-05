@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useSession } from './lib/useSession'
+import { supabase } from './lib/supabase'
+import SignIn from './SignIn'
 
-/**
- * v0 shell. Deliberately bare: V0-1 only has to prove the PWA installs and
- * boots with no network. The connectivity readout exists so that acceptance
- * is observable on the phone rather than inferred from devtools.
- */
 export default function App() {
+  const auth = useSession()
   const [online, setOnline] = useState(navigator.onLine)
 
   useEffect(() => {
@@ -20,11 +19,34 @@ export default function App() {
 
   return (
     <main className="shell">
-      <h1>Habit Tracker</h1>
-      <p className="muted">v0 walking skeleton</p>
-      <p className={online ? 'status status--online' : 'status status--offline'}>
-        {online ? 'online' : 'offline — shell served from cache'}
-      </p>
+      <header className="header">
+        <div>
+          <h1>Habit Tracker</h1>
+          <p className="muted">v0 walking skeleton</p>
+        </div>
+        <span className={online ? 'pill pill--online' : 'pill pill--offline'}>
+          {online ? 'online' : 'offline'}
+        </span>
+      </header>
+
+      {auth.status === 'loading' && <p className="muted">Restoring session…</p>}
+
+      {auth.status === 'signedOut' && <SignIn />}
+
+      {auth.status === 'signedIn' && (
+        <div className="card">
+          <h2>Signed in</h2>
+          <p className="muted">{auth.session.user.email}</p>
+          {!online && (
+            <p className="muted">
+              Session restored from local storage with no network — V0-3 acceptance.
+            </p>
+          )}
+          <button className="btn btn--quiet" onClick={() => supabase.auth.signOut()}>
+            Sign out
+          </button>
+        </div>
+      )}
     </main>
   )
 }
