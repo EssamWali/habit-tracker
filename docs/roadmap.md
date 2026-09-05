@@ -6,8 +6,8 @@ verifiable rather than something demoable.
 | | Scope | Status |
 |---|---|---|
 | **v0** | Walking skeleton: auth, schema, RLS, local-first sync, one heatmap | ✅ complete |
-| **v1** | The core loop: cadence, palette, both heatmaps, streaks, backfill | in progress |
-| **v2** | Insight: statistics, trend, notes, export, reminders | |
+| **v1** | The core loop: cadence, palette, both heatmaps, streaks, backfill | ✅ complete |
+| **v2** | Insight: statistics, trend, notes, export, reminders | next |
 | **v3** | Motivation: Freeze Tokens, Flawless Months, Weight tiers in the UI | |
 | **v4** | Polish: canvas-rendered share PNG | |
 
