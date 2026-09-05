@@ -34,7 +34,11 @@ Project ref `ogylocnwwgakcmhcfjbq`. Migration applied via the dashboard SQL Edit
 
 Google OAuth and email magic link. Session persists across restarts and survives being offline at launch.
 
-**Carried over from V0-2:** "Confirm email" was turned **off** so the isolation test could obtain sessions for two users. Email/password is not a product feature (Q10 settled on Google OAuth plus magic link), but leaving confirmations off means anyone can register against an address they do not own. Decide deliberately as part of this ticket: either re-enable confirmations, or disable email/password sign-up while keeping the email provider on for magic link.
+**Carried over from V0-2, now resolved:** "Confirm email" was turned off so the isolation test could obtain sessions for two users, which left registration open to unverified addresses.
+
+**Decision: new user sign-ups are disabled entirely** (Authentication → Sign In / Providers → "Allow new users to sign up"). Q2 settled this as a single-user app, so closing registration is stronger than merely verifying it, and it makes the confirm-email setting irrelevant. Existing accounts sign in normally.
+
+Consequence: `scripts/rls-isolation-test.mjs` creates two throwaway users and will fail until sign-ups are temporarily re-enabled.
 
 **Done when:** cold-starting the installed PWA in airplane mode lands on the logged-in view, not a login screen.
 

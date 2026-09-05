@@ -7,6 +7,11 @@
  * policies were written correctly.
  *
  *   node scripts/rls-isolation-test.mjs
+ *
+ * NOTE: sign-ups are disabled on this project (single-user app), so this test
+ * will fail with "Signups not allowed" until you temporarily re-enable
+ * Authentication -> Sign In / Providers -> "Allow new users to sign up".
+ * Turn it back off afterwards.
  */
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
@@ -37,7 +42,18 @@ async function makeUser(tag) {
   const email = `rls.${tag}.${stamp}@gmail.com`
   const password = `Test-${stamp}-${tag}!aA1`
   const { data, error } = await client.auth.signUp({ email, password })
-  if (error) throw new Error(`signUp(${tag}) failed: ${error.message}`)
+  if (error) {
+    if (/signup|not allowed|disabled/i.test(error.message)) {
+      throw new Error(
+        'Sign-ups are disabled on this project, which is the intended steady state.
+' +
+        '  To run this test, temporarily enable Authentication -> Sign In / Providers ->
+' +
+        '  "Allow new users to sign up", then turn it off again afterwards.',
+      )
+    }
+    throw new Error(`signUp(${tag}) failed: ${error.message}`)
+  }
   if (!data.session) {
     throw new Error(
       'Sign-up returned no session, which means email confirmation is ON.\n' +
