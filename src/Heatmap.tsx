@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { buildGrid } from './lib/calendar'
+import { buildGrid, buildMonthGrid } from './lib/calendar'
 import { cellState, streaks } from './lib/rules'
 import type { Day, EntryKind, Habit, HabitSchedule } from './lib/types'
 
@@ -19,8 +19,11 @@ export default function Heatmap({
   onToggle: (day: Day) => void
 }) {
   const scroller = useRef<HTMLDivElement>(null)
+  // Month is a calendar month so the grid fills in as the month progresses;
+  // quarter and year are rolling windows ending today.
   const { weeks, monthLabels } = useMemo(
-    () => buildGrid(today, RANGE_DAYS[range]), [today, range])
+    () => (range === 'month' ? buildMonthGrid(today) : buildGrid(today, RANGE_DAYS[range])),
+    [today, range])
 
   const completed = useMemo(() => {
     const s = new Set<Day>()
@@ -33,10 +36,11 @@ export default function Heatmap({
   const { gold, tier2 } = useMemo(
     () => streaks(habit, schedules, entries, today), [habit, schedules, entries, today])
 
+  // Pin to the right edge for rolling windows; a calendar month fits already.
   useEffect(() => {
     const el = scroller.current
-    if (el) el.scrollLeft = el.scrollWidth
-  }, [weeks.length])
+    if (el && range !== 'month') el.scrollLeft = el.scrollWidth
+  }, [weeks.length, range])
 
   return (
     <div className="heatmap-scroll" ref={scroller}>

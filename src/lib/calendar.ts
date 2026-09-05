@@ -56,23 +56,66 @@ export function buildGrid(end: Day, days = 365): Grid {
   const start = addDays(rawStart, -(isoWeekday(parseDay(rawStart)) - 1))
 
   const weeks: Day[][] = []
-  const monthLabels: { column: number; label: string }[] = []
-  let seenMonth = -1
-
   for (let cursor = start; daysBetween(cursor, end) >= 0; cursor = addDays(cursor, 7)) {
-    const week = Array.from({ length: 7 }, (_, i) => addDays(cursor, i))
-    // The column's month is its Thursday's month — the ISO convention, and a
-    // natural majority rule since four of the seven days must share it.
-    // Using the Monday instead loses any month that never starts a column:
-    // a window ending 5 Sep has its last column beginning 31 Aug, so
-    // September would never be labelled at all.
-    const month = parseDay(week[3]!).getMonth()
-    if (month !== seenMonth) {
-      monthLabels.push({ column: weeks.length, label: MONTHS[month]! })
-      seenMonth = month
-    }
-    weeks.push(week)
+    weeks.push(Array.from({ length: 7 }, (_, i) => addDays(cursor, i)))
+  }
+  return { weeks, monthLabels: labelMonths(weeks) }
+}
+
+/** A whole calendar month, padded to complete Monday-start weeks. Days later in
+ *  the month are included and render as empty Cells, so the grid fills in as
+ *  the month progresses rather than being a window that slides. */
+export function buildMonthGrid(anchor: Day): Grid {
+  const d = parseDay(anchor)
+  const first = formatDay(new Date(d.getFullYear(), d.getMonth(), 1))
+  const last = formatDay(new Date(d.getFullYear(), d.getMonth() + 1, 0))
+
+  const start = addDays(first, -(isoWeekday(parseDay(first)) - 1))
+  const weeks: Day[][] = []
+  for (let cursor = start; daysBetween(cursor, last) >= 0; cursor = addDays(cursor, 7)) {
+    weeks.push(Array.from({ length: 7 }, (_, i) => addDays(cursor, i)))
   }
 
-  return { weeks, monthLabels }
+  return {
+    weeks,
+    monthLabels: [{ column: 0, label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` }],
+  }
+}
+
+/**
+ * A column belongs to its Thursday's month — the ISO convention, and a majority
+ * rule since four of seven days must share it.
+ *
+ * A label is emitted only if three columns have passed since the last one:
+ * labels are wider than the 13px column step, so without spacing a short window
+ * renders them overlapping — "JulAug" collided into one smear.
+ *
+ * A *leading* partial month of a single column is dropped, because keeping it
+ * would consume the spacing budget and suppress the following full month. A
+ * trailing partial month is kept: the current month must always be labelled,
+ * and dropping it was the original "September is missing" bug.
+ */
+function labelMonths(weeks: Day[][]): { column: number; label: string }[] {
+  // Keyed by year AND month: a 365-day window contains two Septembers, and
+  // keying by month alone makes the trailing one collide with the leading one
+  // so it never registers its own column.
+  const firstColumnOf = new Map<number, number>()
+  const width = new Map<number, number>()
+
+  weeks.forEach((week, column) => {
+    const d = parseDay(week[3]!)
+    const key = d.getFullYear() * 12 + d.getMonth()
+    if (!firstColumnOf.has(key)) firstColumnOf.set(key, column)
+    width.set(key, (width.get(key) ?? 0) + 1)
+  })
+
+  const out: { column: number; label: string }[] = []
+  let previous = -Infinity
+  for (const [key, column] of [...firstColumnOf.entries()].sort((a, b) => a[1] - b[1])) {
+    if (column === 0 && (width.get(key) ?? 0) < 2) continue
+    if (column - previous < 3) continue
+    out.push({ column, label: MONTHS[key % 12]! })
+    previous = column
+  }
+  return out
 }

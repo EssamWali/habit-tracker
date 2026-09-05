@@ -16,6 +16,7 @@
 
   --cell-empty: #ebedf0;
   --cell-missed: #ebedf0;
+  --cell-ghost: #f4f6f8;
 
   /* Reserved: no habit may claim these. */
   --gold: #d4a017;
@@ -61,6 +62,7 @@
 
   --cell-empty: #21262d;
   --cell-missed: #21262d;
+  --cell-ghost: #161b22;
 
   --gold: #e3b341;
   --gold-ring: #f0d68a;
@@ -78,7 +80,7 @@
     color-scheme: dark;
     --bg: #0d1117; --surface: #151b23; --fg: #e6edf3; --muted: #9198a1;
     --line: #3d444d; --danger: #ff9a5a; --ok: #3fb950;
-    --cell-empty: #21262d; --cell-missed: #21262d;
+    --cell-empty: #21262d; --cell-missed: #21262d; --cell-ghost: #161b22;
     --gold: #e3b341; --gold-ring: #f0d68a;
     --agg-1: #2f3742; --agg-2: #4e5966; --agg-3: #7d8792; --agg-4: #e6edf3;
   }
@@ -187,10 +189,14 @@ body {
 }
 
 .hcell { width: var(--cell); height: var(--cell); border-radius: 2px; background: var(--cell-empty); }
+/* Every Cell in the window is drawn; only the shade varies. A transparent
+   out-of-range Cell leaves holes in the lattice, which is why a habit created
+   today rendered as a single floating square in an empty void. */
 .hcell--completed { background: var(--habit-hue); }
+.hcell--frozen { background: var(--habit-hue); opacity: 0.4; }
 .hcell--missed { background: var(--cell-missed); }
-.hcell--unscheduled { background: transparent; box-shadow: inset 0 0 0 1px var(--cell-empty); }
-.hcell--out { background: transparent; }
+.hcell--unscheduled { background: var(--cell-ghost); box-shadow: inset 0 0 0 1px var(--cell-empty); }
+.hcell--out { background: var(--cell-ghost); }
 
 /* Gold replaces the habit's own colour once a run reaches threshold. The
    second tier adds a ring rather than a fourteenth hue. */
@@ -233,3 +239,5 @@ body {
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .card-head h2 { margin: 0; }
 .seg--small button { padding: 4px 9px; font-size: 0.6875rem; }
+
+.heatmap-months span { white-space: nowrap; }
