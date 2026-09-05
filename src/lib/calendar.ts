@@ -56,7 +56,12 @@ export function buildGrid(end: Day, days = 365): Grid {
 
   for (let cursor = start; daysBetween(cursor, end) >= 0; cursor = addDays(cursor, 7)) {
     const week = Array.from({ length: 7 }, (_, i) => addDays(cursor, i))
-    const month = parseDay(week[0]!).getMonth()
+    // The column's month is its Thursday's month — the ISO convention, and a
+    // natural majority rule since four of the seven days must share it.
+    // Using the Monday instead loses any month that never starts a column:
+    // a window ending 5 Sep has its last column beginning 31 Aug, so
+    // September would never be labelled at all.
+    const month = parseDay(week[3]!).getMonth()
     if (month !== seenMonth) {
       monthLabels.push({ column: weeks.length, label: MONTHS[month]! })
       seenMonth = month

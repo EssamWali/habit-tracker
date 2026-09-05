@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { today } from './lib/day'
-import { createHabit, toggleDay } from './lib/store'
+import { createHabit, removeHabit, toggleDay } from './lib/store'
 import { useCompletedOn, useCompletionsByHabit, useHabits, useOutboxDepth } from './lib/useLocalStore'
 import Heatmap from './Heatmap'
 import { useSync } from './lib/useSync'
@@ -50,6 +50,14 @@ export default function HabitList({ userId }: { userId: string }) {
                   aria-label={`${done ? 'Completed' : 'Not completed'} today: ${h.name}`}
                 />
                 <span className={done ? 'habit-name habit-name--done' : 'habit-name'}>{h.name}</span>
+                <button
+                  className="remove"
+                  aria-label={`Delete ${h.name}`}
+                  title={`Delete ${h.name}`}
+                  onClick={() => {
+                    if (confirm(`Delete "${h.name}" and all its history?`)) removeHabit(h)
+                  }}
+                >×</button>
               </div>
               <Heatmap habit={h} today={day} completed={byHabit.get(h.id) ?? new Set()} />
             </li>

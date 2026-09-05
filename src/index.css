@@ -253,3 +253,19 @@ h1 { font-size: 1.25rem; margin: 0 0 4px; }
 
 .hcell--completed { background: var(--ok); }
 .hcell--out { background: transparent; }
+
+.habit-head .habit-name { flex: 1; }
+
+.remove {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 2px 6px;
+  font-size: 1.125rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.remove:hover { color: #b35900; background: var(--cell-empty); }

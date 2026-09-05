@@ -55,3 +55,25 @@ describe('buildGrid', () => {
     expect(new Set(grid.monthLabels.map(m => m.column)).size).toBe(grid.monthLabels.length)
   })
 })
+
+describe('month labels', () => {
+  it('labels a month that never begins a column', () => {
+    // Window ends 5 Sep 2026; the final column starts Monday 31 Aug, so no
+    // column begins in September. It must still be labelled.
+    const { monthLabels } = buildGrid('2026-09-05', 365)
+    expect(monthLabels.map(m => m.label)).toContain('Sep')
+  })
+
+  it('labels the final column with the month it mostly covers', () => {
+    const { weeks, monthLabels } = buildGrid('2026-09-05', 365)
+    const last = monthLabels[monthLabels.length - 1]!
+    expect(last.column).toBe(weeks.length - 1)
+    expect(last.label).toBe('Sep')
+  })
+
+  it('emits labels in strictly increasing column order', () => {
+    const { monthLabels } = buildGrid('2026-09-05', 365)
+    const cols = monthLabels.map(m => m.column)
+    expect(cols).toEqual([...cols].sort((a, b) => a - b))
+  })
+})

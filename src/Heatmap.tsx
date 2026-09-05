@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react'
 import { buildGrid, daysBetween } from './lib/calendar'
 import type { Day, Habit } from './lib/types'
 
-const WEEKDAY_LABELS = ['Mon', '', 'Wed', '', 'Fri', '', '']
+// All seven, single letters. GitHub labels only alternate rows to avoid
+// crowding, but that reads as 'only three days are shown'.
+const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
 type CellState = 'completed' | 'empty' | 'out'
 
