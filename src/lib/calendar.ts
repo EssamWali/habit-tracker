@@ -28,6 +28,11 @@ export function daysBetween(a: Day, b: Day): number {
   return Math.round((parseDay(b).getTime() - parseDay(a).getTime()) / MS_PER_DAY)
 }
 
+/** The Monday of the ISO week containing `day`. */
+export function startOfIsoWeek(day: Day): Day {
+  return addDays(day, -(isoWeekday(parseDay(day)) - 1))
+}
+
 export interface Grid {
   /** Columns of exactly 7 Days, Monday first. The final column may run past
    *  `end` into the future; those Cells render as out-of-range. */

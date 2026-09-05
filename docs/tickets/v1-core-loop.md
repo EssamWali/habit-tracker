@@ -12,12 +12,14 @@ reminders, Freeze Tokens, Flawless Months, share images.
 
 ---
 
-## V1-1 · R1 + R2 — schedule resolution and scheduled days
+## V1-1 · R1 + R2 — schedule resolution and scheduled days ✅
 
 `resolveSchedule(habit, day)` returns the `habit_schedules` row in force *on
 that day*, or `OUT_OF_RANGE` for days before Start Date, on/after Archive, or in
 the future. `isScheduled(habit, day)` answers the Aggregate denominator question
 only — never whether something was missed.
+
+**Result:** `src/lib/rules.ts`, 16 tests. Resolution scans for the latest `effective_from` at or before the day regardless of array order, and ignores tombstoned rows and rows belonging to other habits.
 
 **Done when:** unit tests cover a habit whose cadence changed mid-history and
 prove the old schedule still governs old days (ADR 0004); a `weekly_quota`
