@@ -19,6 +19,8 @@ export const DEFAULT_PROFILE: Omit<Profile, 'id' | 'updated_at'> = {
   theme: 'system',
   reminder_enabled: false,
   reminder_minutes: null,
+  timezone: 'UTC',
+  last_clear_day: null,
 }
 
 /** Fill in whatever the mirror is missing. Never throws, never blocks a render. */
@@ -90,3 +92,15 @@ export async function saveProfile(
 /** `HH:MM` for a Day Start, for labels and selects. */
 export const formatDayStart = (minutes: number): string =>
   `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+
+/** This browser's IANA zone, or UTC where the runtime will not say. */
+export function localTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  } catch {
+    return 'UTC'
+  }
+}
+
+/** `HH:MM` for a reminder time. Same shape as a Day Start. */
+export const formatTime = formatDayStart

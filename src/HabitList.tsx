@@ -4,10 +4,11 @@ import { createHabit, setNote, toggleDay } from './lib/store'
 import { useDragOrder } from './useDragOrder'
 import { useEntriesByHabit, useHabits, useNotesByHabit, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
+import { useClearDay } from './lib/reminder'
 import type { ResolvedTheme } from './lib/theme'
 import { hueValue } from './lib/palette'
 import { OUT_OF_RANGE, cellState, resolveSchedule } from './lib/rules'
-import type { EntryKind, Habit, HabitSchedule } from './lib/types'
+import type { EntryKind, Habit, HabitSchedule, Profile } from './lib/types'
 import Heatmap, { type Range } from './Heatmap'
 import HabitEditor from './HabitEditor'
 import AggregateHeatmap from './AggregateHeatmap'
@@ -39,9 +40,10 @@ function cadenceSummary(habit: Habit, schedules: readonly HabitSchedule[], today
 }
 
 export default function HabitList({
-  userId, dayStartMinutes, resolvedTheme,
+  userId, profile, dayStartMinutes, resolvedTheme,
 }: {
   userId: string
+  profile: Profile | null
   /** Day Start comes from the profile (R0); this component never assumes 04:00. */
   dayStartMinutes: number
   resolvedTheme: ResolvedTheme
@@ -56,6 +58,10 @@ export default function HabitList({
   const { status, syncNow } = useSync(userId)
   const resolved = resolvedTheme
   const drag = useDragOrder(habits)
+
+  // Publishes "nothing left owing today" for the reminder job, so suppression
+  // never needs a second copy of the rules on the server (V2-6).
+  useClearDay(userId, profile, habits, schedules, entriesByHabit, day)
   const [name, setName] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [picked, setPicked] = useState<{ habitId: string; day: string } | null>(null)

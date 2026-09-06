@@ -27,6 +27,11 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
         navigateFallback: 'index.html',
+        // Push handlers are layered onto the generated worker rather than
+        // replacing it with injectManifest. That mode would hand over
+        // authorship of the whole service worker, and the offline shell this
+        // already produces works; V2-6 only needs two more listeners.
+        importScripts: ['/push-sw.js'],
       },
     }),
   ],

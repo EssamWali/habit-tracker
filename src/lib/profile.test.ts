@@ -9,6 +9,8 @@ const row = (patch: Partial<Profile> = {}): Profile => ({
   theme: 'system',
   reminder_enabled: false,
   reminder_minutes: null,
+  timezone: 'Asia/Karachi',
+  last_clear_day: null,
   updated_at: '2026-09-06T10:00:00.000Z',
   ...patch,
 })

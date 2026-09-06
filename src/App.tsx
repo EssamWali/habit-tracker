@@ -3,7 +3,7 @@ import { useSession } from './lib/useSession'
 import { supabase } from './lib/supabase'
 import { ensureUserScope } from './lib/db'
 import { useProfile } from './lib/useLocalStore'
-import { dayStartOf, isPlaceholder, saveProfile } from './lib/profile'
+import { dayStartOf, isPlaceholder, localTimezone, saveProfile } from './lib/profile'
 import HabitList from './HabitList'
 import SignIn from './SignIn'
 import Settings from './Settings'
@@ -40,6 +40,15 @@ export default function App() {
     if (!isPlaceholder(profile)) return
     const local = readStoredTheme()
     if (local !== 'system') saveProfile(userId, { theme: local })
+  }, [userId, profile])
+
+  // The reminder cron runs in UTC, so "20:00" needs somewhere to be 20:00.
+  // Written on every change rather than once, since a laptop that moves country
+  // would otherwise keep nudging on the old zone's clock.
+  useEffect(() => {
+    if (!userId || !profile || isPlaceholder(profile)) return
+    const zone = localTimezone()
+    if (profile.timezone !== zone) saveProfile(userId, { timezone: zone })
   }, [userId, profile])
 
   useEffect(() => {
@@ -106,6 +115,7 @@ export default function App() {
           {scoped && (
             <HabitList
               userId={auth.session.user.id}
+              profile={profile}
               dayStartMinutes={dayStartOf(profile)}
               resolvedTheme={theme.resolved}
             />

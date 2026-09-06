@@ -250,7 +250,7 @@ CSV quotes any field containing a comma, quote or newline. Notes are free text,
 and an unescaped one shifts every following column — the classic way a CSV
 corrupts data silently.
 
-## V2-6 · Daily reminder
+## V2-6 · Daily reminder ✅ (client and function built; not yet switched on)
 
 One configurable daily nudge (Q16), suppressed when the day is already
 complete, so a notification always means something.
@@ -260,3 +260,48 @@ scheduled Supabase edge function. Android only — iOS was dropped in Q8.
 
 **Done when:** a reminder arrives with the app closed, and does not arrive on a
 day where everything scheduled was already completed.
+
+**Result:** migration `0004`, `src/lib/push.ts`, `src/lib/reminder.ts`,
+`public/push-sw.js`, `supabase/functions/daily-reminder/`, and a runbook at
+`docs/reminders-setup.md`. 9 further tests, 132 passing overall.
+
+**The server has no rules engine.** This was the design decision the ticket
+turned on. "Is today already complete?" needs R1, R2 and R5 — cadences,
+effective-dated schedules, weekly quotas, and the *structural* Perfect Day test.
+A second implementation in SQL would be free to drift, and a suppression rule
+that drifts either nags people who are finished or silences people who are not.
+
+So the client answers it with the same `aggregate()` that draws the aggregate
+heatmap, and writes the conclusion to `profiles.last_clear_day`.
+`due_reminders()` compares two dates. The cost is that the answer is only as
+fresh as the last time the app was open — and that failure mode points the right
+way: someone who has not opened the app today gets their reminder.
+
+**All timing lives in SQL**, in the migration, so it is versioned and can be
+inspected with `select * from due_reminders()`. The local Day is shifted by
+`day_start_minutes`, matching R0: with a 04:00 Day Start, a 02:00 reminder is
+still about yesterday.
+
+**A one-hour window with a 15-minute cron.** A late or failed run does not drop
+the day's nudge; `reminder_state.last_notified_day` stops that becoming four of
+them. Marking happens *after* a successful send — a push-service outage should
+cost a duplicate, not a silently skipped day.
+
+**`reminder_state` is a separate table, not a column on `profiles`.** A client
+pushing its profile row would carry a stale copy of the last-notified date and
+clobber the server's record of what it had already sent.
+
+**`push_subscriptions` sits outside the sync engine.** A subscription belongs to
+one browser on one device; mirroring it would leave every device holding
+endpoints it must never send to. Subscribing needs the network anyway.
+
+**Push handlers are layered onto the Workbox service worker** via
+`importScripts`, rather than switching the plugin to `injectManifest`. That mode
+hands over authorship of the whole service worker, and the offline shell it
+already generates works and was verified in v0.
+
+**Not switched on.** The keypair is generated and the public half is deployed,
+but four steps need a human: apply migration 0004, set the function secrets,
+`supabase functions deploy` (interactive login), and schedule the cron. The
+runbook has each one. Until then the setting reports that push is unavailable
+rather than failing at the moment someone taps it.

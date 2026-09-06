@@ -20,6 +20,17 @@ export interface Profile {
   theme: 'system' | 'light' | 'dark'
   reminder_enabled: boolean
   reminder_minutes: number | null
+  /** IANA zone. The reminder cron runs in UTC, so "20:00" needs a place. */
+  timezone: string
+  /**
+   * The last Day on which nothing was left owing — every Scheduled Habit
+   * completed, or nothing scheduled at all.
+   *
+   * Written by the client because the client owns the derivation rules. The
+   * reminder job only compares dates, so there is no second implementation of
+   * R1/R2/R5 on the server to drift from this one (V2-6).
+   */
+  last_clear_day: Day | null
   updated_at: Stamp
 }
 
