@@ -39,6 +39,30 @@ npm run build     # typecheck, bundle, and generate the service worker
 Postgres lives on Supabase. Migrations in `supabase/migrations/` are applied by
 hand through the dashboard's SQL Editor, in order.
 
+## Deploying
+
+**Pushing does not deploy.** The Vercel–GitHub connection was never completed,
+so a release is a manual step:
+
+```sh
+npx vercel --yes --prod
+```
+
+Then check what is live is what you built — compare the bundle hash in
+`dist/assets/` against the deployed page:
+
+```sh
+curl -s https://habit-tracker-gilt-two.vercel.app/ | grep -o 'assets/index-[^"]*\.js'
+```
+
+Use the `gilt-two` alias. The `habit-tracker-<team>` one is behind Vercel's SSO
+and will ask for a login.
+
+Migrations are not deployed by any of this, and the order matters: a client that
+writes a column the database does not have yet will fail *every* push, not just
+that one, because a rejected batch aborts the whole sync cycle. Apply the
+migration first, then deploy.
+
 ## Where the design lives
 
 The reasoning is written down rather than remembered, and most of it predates
