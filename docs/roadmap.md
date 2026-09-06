@@ -8,7 +8,7 @@ verifiable rather than something demoable.
 | **v0** | Walking skeleton: auth, schema, RLS, local-first sync, one heatmap | ✅ complete |
 | **v1** | The core loop: cadence, palette, both heatmaps, streaks, backfill | ✅ complete |
 | **v2** | Insight: statistics, trend, notes, export, reminders | ✅ complete — reminders need the setup in `reminders-setup.md` before they send |
-| **v3** | Motivation: Freeze Tokens, Flawless Months, Weight tiers in the UI | next |
+| **v3** | Motivation: Freeze Tokens and Flawless Months | next — Weight tiers shipped early, in V1-4 |
 | **v4** | Polish: canvas-rendered share PNG | |
 
 ## Deliberately excluded
