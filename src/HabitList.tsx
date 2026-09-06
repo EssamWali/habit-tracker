@@ -12,6 +12,7 @@ import Heatmap, { type Range } from './Heatmap'
 import HabitEditor from './HabitEditor'
 import AggregateHeatmap from './AggregateHeatmap'
 import DayDetail from './DayDetail'
+import Stats from './Stats'
 
 function syncLabel(status: ReturnType<typeof useSync>['status']): string {
   switch (status.state) {
@@ -73,6 +74,7 @@ export default function HabitList({
   }
 
   return (
+    <>
     <div className="card">
       <div className="card-head">
         <h2>Today · {day}</h2>
@@ -196,5 +198,14 @@ export default function HabitList({
         <button className="linkish" onClick={syncNow} disabled={status.state === 'syncing'}>sync now</button>
       </p>
     </div>
+
+    <Stats
+      habits={habits}
+      schedules={schedules}
+      entriesByHabit={entriesByHabit}
+      today={day}
+      resolvedTheme={resolved}
+    />
+    </>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { habitStats, windowSpan } from './stats'
+import { concernOf, habitStats, windowSpan } from './stats'
 import { addDays } from './calendar'
 import type { Day, EntryKind, Habit, HabitSchedule, Weight } from './types'
 
@@ -258,5 +258,49 @@ describe('R8 · trend', () => {
     const s = habitStats(h, sch, done(...run('2026-08-01', 30)), TODAY, 'all')
     expect(s.previous).toBeNull()
     expect(s.trend.direction).toBe('insufficient')
+  })
+})
+
+/**
+ * V2-3's ranking key. The acceptance criterion is that a slipping habit is
+ * identifiable without hunting, which is an ordering claim, so it is pinned
+ * here rather than left to the component.
+ */
+describe('concernOf', () => {
+  const h = habit({ start_date: '2026-01-01' })
+  const sch = [schedule({ effective_from: '2026-01-01' })]
+
+  /** A habit completed on exactly the given Days, ranked over a 30-day window. */
+  const rank = (...days: Day[]) =>
+    concernOf(habitStats(h, sch, done(...days), TODAY, 30))
+
+  const WINDOW = run('2026-08-07', 29)          // 7 Aug - 4 Sep; the 5th pends
+  const PREVIOUS = run('2026-07-08', 30)        // 8 Jul - 6 Aug
+
+  it('ranks a slide from near-perfect above a habit that is merely good', () => {
+    // 80% now against 100% before, versus a steady 90%.
+    const slipping = rank(...PREVIOUS, ...WINDOW.slice(0, 23))
+    const steady = rank(...PREVIOUS.slice(0, 27), ...WINDOW.slice(0, 26))
+    expect(slipping).toBeGreaterThan(steady!)
+  })
+
+  /**
+   * The counterweight. Ranking on trend alone would put every small wobble
+   * above a habit that has been failing consistently for months.
+   */
+  it('still ranks a chronic failure above a small wobble', () => {
+    const chronic = rank(...PREVIOUS.slice(0, 9), ...WINDOW.slice(0, 9))   // ~30%, steady
+    const wobble = rank(...PREVIOUS, ...WINDOW.slice(0, 26))               // ~90%, down 10
+    expect(chronic).toBeGreaterThan(wobble!)
+  })
+
+  it('gives a perfect, steady habit the lowest concern', () => {
+    expect(rank(...PREVIOUS, ...WINDOW)).toBeCloseTo(0)
+  })
+
+  it('has no ranking for a habit with no rate', () => {
+    const fresh = habit({ start_date: TODAY })
+    expect(concernOf(habitStats(fresh, [schedule({ effective_from: TODAY })],
+      new Map(), TODAY, 30))).toBeNull()
   })
 })

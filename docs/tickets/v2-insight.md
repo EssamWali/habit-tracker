@@ -120,7 +120,7 @@ day.
 Streak summary is not here: `streaks()` already returns `current` and `longest`,
 and V2-3 calls it directly rather than having R8 re-wrap it.
 
-## V2-3 · Statistics UI
+## V2-3 · Statistics UI ✅
 
 Per habit: completion rate, trend, current Streak, longest Streak. Ranked so
 the slipping habits are visible without hunting. Window toggle 7 / 30 / 90 /
@@ -131,6 +131,32 @@ month is the actionable signal; the rate alone hides it.
 
 **Done when:** a habit that is slipping is identifiable at a glance, and no
 statistic is shown for a habit too new to support it.
+
+**Result:** `src/Stats.tsx`, a second card below the habit list. 4 further
+tests, 99 passing overall.
+
+**The ranking key lives in `stats.ts`, not in the component.** "A slipping habit
+is identifiable without hunting" is an ordering claim, so it is testable logic
+rather than presentation. `concernOf` is shortfall plus decline — how far below
+perfect a habit is now, plus whatever ground it lost since the previous window.
+
+That formula is a deliberate compromise. Ranking on trend alone buries a chronic
+30% beneath every small wobble; ranking on rate alone is exactly what hides a
+slide from 95% to 80%. Both are pinned by tests, in both directions. The score
+is never displayed, so it cannot be misread as a measurement.
+
+Trend sits at the end of the habit's row on its own, ahead of the rate, and is
+the only element that carries colour. `insufficient` renders as "no comparison
+yet" rather than as nothing — silence there reads as "no change", which is a
+claim the data does not support.
+
+A habit with no rate shows one sentence and no bar, no percentage and no trend,
+and sorts to the bottom in its own order rather than being ranked against
+habits that have signal.
+
+Totals are stated in units — "4 of 6 weeks" — rather than as a share of the
+window, because a weekly habit's 30-day window really scores whole weeks (V2-2).
+The card says so in a footnote.
 
 ## V2-4 · Notes
 

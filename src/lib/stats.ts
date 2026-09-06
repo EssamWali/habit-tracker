@@ -164,3 +164,28 @@ export function habitStats(
 
   return { unit, window, current, previous, trend: compare(current, previous) }
 }
+
+/**
+ * How much a Habit wants attention: the ranking key for the statistics list.
+ *
+ * Shortfall plus decline — how far below perfect it is now, plus whatever ground
+ * it has lost since the previous window. A habit at 30% that has always been at
+ * 30% scores 0.70; one at 80% that was at 95% scores 0.35; one at 95% and steady
+ * scores 0.05.
+ *
+ * Ranking on trend alone would bury a chronic 30% beneath every small wobble,
+ * and ranking on rate alone is precisely what hides a slide from 95% to 80%.
+ * Counting both, equally, is the compromise.
+ *
+ * Null when there is no rate to rank on. Such habits carry no signal and belong
+ * at the bottom in their own order, not ranked against habits that do.
+ *
+ * This is only ever a sort order. It is never displayed, so it cannot be
+ * misread as a measurement of anything.
+ */
+export function concernOf(stats: HabitStats): number | null {
+  const rate = stats.current.rate
+  if (rate === null) return null
+  const decline = stats.trend.direction === 'down' ? -(stats.trend.delta ?? 0) : 0
+  return (1 - rate) + decline
+}
