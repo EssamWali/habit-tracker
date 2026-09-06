@@ -106,6 +106,10 @@ export async function createHabit(
  * offline has to learn the Completion was removed, and a deleted row carries no
  * such news (ADR 0002).
  *
+ * The row is spread rather than rebuilt, so a Note survives an un-tick and
+ * comes back if the day is ticked again. An accidental tap should not destroy
+ * something the user wrote; clearing a Note is its own explicit action.
+ *
  * The read and the write share a transaction so two fast taps cannot both
  * observe the same prior state and end up agreeing on the wrong result.
  */
@@ -117,6 +121,38 @@ export async function toggleDay(userId: string, habitId: string, day: Day): Prom
     const row: DayEntry = existing
       ? { ...existing, kind: 'completed', deleted_at: existing.deleted_at === null ? stamp : null, updated_at: stamp }
       : { habit_id: habitId, day, user_id: userId, kind: 'completed', value: null, note: null, updated_at: stamp, deleted_at: null }
+
+    await db.day_entries.put(row)
+    await db.outbox.put({ table: 'day_entries', key: `${habitId}|${day}`, payload: row, created_at: stamp })
+  })
+}
+
+/**
+ * The column's own limit. A row over it is rejected by the check constraint on
+ * push, and because a failed push aborts the whole cycle, one oversized note
+ * would stall every other table's sync behind it. Clamping here is what keeps
+ * that from ever reaching the wire.
+ */
+export const NOTE_MAX = 500
+
+/**
+ * Attach or clear a Note on a Completion.
+ *
+ * Deliberately a no-op when there is no live entry. A Note belongs to a
+ * Completion, so writing one must not create an entry or revive a tombstoned
+ * one — that would quietly turn "add a note" into "mark this day done".
+ *
+ * Empty text stores null rather than an empty string, so "has a note" is a
+ * single unambiguous test for the Cell marker.
+ */
+export async function setNote(habitId: string, day: Day, note: string): Promise<void> {
+  await db.transaction('rw', [db.day_entries, db.outbox], async () => {
+    const existing = await db.day_entries.get([habitId, day])
+    if (!existing || existing.deleted_at !== null) return
+
+    const trimmed = note.trim().slice(0, NOTE_MAX)
+    const stamp = nowStamp()
+    const row: DayEntry = { ...existing, note: trimmed === '' ? null : trimmed, updated_at: stamp }
 
     await db.day_entries.put(row)
     await db.outbox.put({ table: 'day_entries', key: `${habitId}|${day}`, payload: row, created_at: stamp })

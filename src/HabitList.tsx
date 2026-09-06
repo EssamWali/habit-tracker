@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { today as todayFn } from './lib/day'
-import { createHabit, toggleDay } from './lib/store'
+import { createHabit, setNote, toggleDay } from './lib/store'
 import { useDragOrder } from './useDragOrder'
-import { useEntriesByHabit, useHabits, useOutboxDepth, useSchedules } from './lib/useLocalStore'
+import { useEntriesByHabit, useHabits, useNotesByHabit, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
 import type { ResolvedTheme } from './lib/theme'
 import { hueValue } from './lib/palette'
@@ -24,6 +24,9 @@ function syncLabel(status: ReturnType<typeof useSync>['status']): string {
 }
 
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+
+/** Stable identity, so a habit with no notes does not remount the heatmap. */
+const EMPTY_NOTES: ReadonlyMap<string, string> = new Map()
 
 function cadenceSummary(habit: Habit, schedules: readonly HabitSchedule[], today: string): string {
   const s = resolveSchedule(habit, schedules, today, today)
@@ -48,6 +51,7 @@ export default function HabitList({
   const habits = useHabits(userId, showArchived)
   const schedules = useSchedules(userId)
   const entriesByHabit = useEntriesByHabit(userId)
+  const notesByHabit = useNotesByHabit(userId)
   const pending = useOutboxDepth()
   const { status, syncNow } = useSync(userId)
   const resolved = resolvedTheme
@@ -143,6 +147,7 @@ export default function HabitList({
                 habit={h}
                 schedules={schedules}
                 entries={entries}
+                notes={notesByHabit.get(h.id) ?? EMPTY_NOTES}
                 today={day}
                 range={range}
                 onToggle={d => toggleDay(userId, h.id, d)}
@@ -181,10 +186,15 @@ export default function HabitList({
         for (const [d, k] of entries) if (k === 'completed') completed.add(d)
         return (
           <DayDetail
+            // Keyed by the Cell: without this, opening the sheet on a second
+            // day reuses the mounted component and the note draft stays stale.
+            key={`${picked.habitId}-${picked.day}`}
             habit={h}
             day={picked.day}
             state={cellState(h, schedules, picked.day, day, entries, completed)}
+            note={notesByHabit.get(h.id)?.get(picked.day) ?? ''}
             onToggle={() => toggleDay(userId, h.id, picked.day)}
+            onSaveNote={text => setNote(h.id, picked.day, text)}
             onClose={() => setPicked(null)}
           />
         )

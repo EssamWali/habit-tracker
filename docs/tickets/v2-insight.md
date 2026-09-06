@@ -158,7 +158,7 @@ Totals are stated in units — "4 of 6 weeks" — rather than as a share of the
 window, because a weekly habit's 30-day window really scores whole weeks (V2-2).
 The card says so in a footnote.
 
-## V2-4 · Notes
+## V2-4 · Notes ✅
 
 Free text on a Completion, edited in the day-detail sheet. Cells carrying a
 note get a marker.
@@ -167,6 +167,40 @@ The column already exists on `day_entries`, so this is UI and sync only.
 
 **Done when:** a note survives a round trip through sync, and a Cell with a note
 is distinguishable from one without at a glance.
+
+**Result:** `setNote` in `store.ts`, `useNotesByHabit`, an editor in the
+day-detail sheet, and a corner fold on the Cell. 8 further tests, 107 passing
+overall. `fake-indexeddb` added as a dev dependency so the store's transactional
+rules can be tested at all.
+
+**Sync needed no change.** `note` was already a column and the whole row is
+upserted, so the round trip works through the existing path.
+
+**A Note belongs to a Completion, so `setNote` is a no-op without a live entry.**
+Writing one must not create an entry or revive a tombstoned one — that would
+quietly turn "add a note" into "mark this day done". The test for it fails if the
+guard is removed, which was checked rather than assumed.
+
+**A Note survives an un-tick and returns if the day is ticked again.** An
+accidental tap should not destroy something the user wrote; clearing is its own
+explicit action. It is invisible while tombstoned, since notes are collected from
+live rows only.
+
+**Empty text stores null, never `''`**, so "has a note" stays one unambiguous
+test for the marker.
+
+**The 500-character cap is enforced client-side, not left to the column.** A
+row over it is rejected by the check constraint on push, and a failed push aborts
+the whole cycle — one oversized note would stall every other table's sync behind
+it.
+
+The marker is a corner fold rather than a colour or a dot: it has to stay legible
+on gold, which already owns both the fill and a ring, and on all twelve hues. Only
+completed Cells can carry a Note, so contrast is guaranteed.
+
+**Not covered:** a Note on a Miss. There is no note-only state in the data model
+— a live `day_entries` row *is* a Completion — so "was ill" cannot be recorded
+against a day that was missed. Noted here rather than worked around.
 
 ## V2-5 · Export and import
 

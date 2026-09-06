@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { parseDay } from './lib/calendar'
 import type { CellState } from './lib/rules'
+import { NOTE_MAX } from './lib/store'
 import type { Day, Habit } from './lib/types'
 
 const LONG_DATE = new Intl.DateTimeFormat(undefined, {
@@ -28,15 +29,20 @@ const DESCRIPTION: Record<CellState, string> = {
  * large enough and distinctly outlined enough to hit deliberately.
  */
 export default function DayDetail({
-  habit, day, state, onToggle, onClose,
+  habit, day, state, note, onToggle, onSaveNote, onClose,
 }: {
   habit: Habit
   day: Day
   state: CellState
+  /** Empty unless the day is a live Completion — a tombstoned row's note is
+   *  retained in the mirror but never surfaced. */
+  note: string
   onToggle: () => void
+  onSaveNote: (text: string) => void
   onClose: () => void
 }) {
   const firstButton = useRef<HTMLButtonElement>(null)
+  const [draft, setDraft] = useState(note)
 
   useEffect(() => {
     firstButton.current?.focus()
@@ -59,6 +65,30 @@ export default function DayDetail({
         <p className="sheet-date">{LONG_DATE.format(parseDay(day))}</p>
         <h3 className="sheet-habit">{habit.name}</h3>
         <p className="muted">{DESCRIPTION[state]}</p>
+
+        {/* A Note hangs off a Completion, so there is nowhere to put one until
+            the day is marked done. Saying that is better than a disabled box
+            with no explanation. */}
+        {state === 'completed' ? (
+          <div className="sheet-note">
+            <label className="setting-label" htmlFor="note">Note</label>
+            <textarea
+              id="note"
+              className="input"
+              rows={3}
+              maxLength={NOTE_MAX}
+              value={draft}
+              placeholder="How did it go?"
+              onChange={e => setDraft(e.target.value)}
+            />
+            <div className="sheet-note-foot">
+              <span className="muted note">{draft.length}/{NOTE_MAX}</span>
+              {draft.trim() !== note.trim() && (
+                <button className="linkish" onClick={() => onSaveNote(draft)}>Save note</button>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         <div className="sheet-actions">
           {editable && (

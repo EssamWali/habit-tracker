@@ -9,11 +9,13 @@ export type Range = 'month' | 'quarter' | 'year'
 export const RANGE_DAYS: Record<Range, number> = { month: 35, quarter: 91, year: 365 }
 
 export default function Heatmap({
-  habit, schedules, entries, today, range, onToggle, onSelect,
+  habit, schedules, entries, notes, today, range, onToggle, onSelect,
 }: {
   habit: Habit
   schedules: readonly HabitSchedule[]
   entries: ReadonlyMap<Day, EntryKind>
+  /** Days carrying a Note, so the Cell can be marked (V2-4). */
+  notes: ReadonlyMap<Day, string>
   today: Day
   range: Range
   onToggle: (day: Day) => void
@@ -117,6 +119,7 @@ export default function Heatmap({
             {weeks.flat().map(day => {
               const state = cellState(habit, schedules, day, today, entries, completed)
               const gilded = state === 'completed' && gold.has(day)
+              const noted = notes.has(day)
 
               // Days the habit was never scheduled for are inert. Declaring a
               // cadence and then being offered a tick on an off-day undermines
@@ -131,9 +134,15 @@ export default function Heatmap({
                 // Today is marked either way, but softly when it cannot be
                 // acted on, so the outline never implies a tap target.
                 day === today ? (inert ? 'hcell--today-off' : 'hcell--today') : '',
+                // A corner fold rather than a colour: it has to stay legible on
+                // gold, which already owns both the fill and a ring.
+                noted ? 'hcell--noted' : '',
               ].filter(Boolean).join(' ')
 
-              const title = state === 'out_of_range' ? day : `${day} — ${describe(state, gilded)}`
+              const label = describe(state, gilded) + (noted ? ', has a note' : '')
+              const title = state === 'out_of_range'
+                ? day
+                : `${day} — ${label}${noted ? `: ${notes.get(day)}` : ''}`
 
               const focused = day === focusDay ? ' hcell--focus' : ''
 
@@ -152,7 +161,7 @@ export default function Heatmap({
                     className={cls + focused} title={title}
                     onClick={() => { setFocusDay(day); onToggle(day) }}
                     aria-pressed={state === 'completed'}
-                    aria-label={`${habit.name}, today: ${describe(state, gilded)}`}
+                    aria-label={`${habit.name}, today: ${label}`}
                   />
                 )
               }
@@ -163,7 +172,7 @@ export default function Heatmap({
                   className={`${cls} hcell--pick${focused}`}
                   title={title}
                   onClick={() => { setFocusDay(day); onSelect(day) }}
-                  aria-label={`${habit.name}, ${day}: ${describe(state, gilded)}`}
+                  aria-label={`${habit.name}, ${day}: ${label}`}
                 />
               )
             })}

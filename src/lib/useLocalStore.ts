@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
-import type { EntryKind, Profile } from './types'
+import type { Day, EntryKind, Profile } from './types'
 import { alive, habitRange } from './store'
 import { withDefaults } from './profile'
 
@@ -72,6 +72,31 @@ export function useCompletionsByHabit(userId: string | undefined) {
     },
     [userId],
     new Map<string, Set<string>>(),
+  )
+}
+
+/**
+ * Notes, grouped by habit and keyed by day.
+ *
+ * Kept apart from useEntriesByHabit rather than folded into it: that map feeds
+ * the derivation rules, which are typed over EntryKind and have no business
+ * knowing about free text. Notes are presentation.
+ */
+export function useNotesByHabit(userId: string | undefined) {
+  return useLiveQuery(
+    async () => {
+      const map = new Map<string, Map<Day, string>>()
+      if (!userId) return map
+      for (const r of alive(await db.day_entries.where('user_id').equals(userId).toArray())) {
+        if (!r.note) continue
+        let inner = map.get(r.habit_id)
+        if (!inner) map.set(r.habit_id, (inner = new Map()))
+        inner.set(r.day, r.note)
+      }
+      return map
+    },
+    [userId],
+    new Map<string, Map<Day, string>>(),
   )
 }
 
