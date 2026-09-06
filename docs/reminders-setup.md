@@ -80,8 +80,16 @@ Verify it end to end before scheduling anything:
 
 ```sh
 curl -X POST https://ogylocnwwgakcmhcfjbq.functions.supabase.co/daily-reminder \
+  -H "Authorization: Bearer <VITE_SUPABASE_ANON_KEY>" \
   -H "x-reminder-secret: <REMINDER_SECRET>"
 ```
+
+**Both headers are needed.** Supabase's gateway verifies a JWT before the
+function is reached at all, so a request carrying only the secret is rejected
+with `UNAUTHORIZED_NO_AUTH_HEADER` and never runs a line of our code. The anon
+key satisfies that check — it ships in the bundle and gates nothing. The real
+gate is `REMINDER_SECRET`, checked inside the function: the anon key with a
+wrong secret comes back `forbidden`.
 
 It replies with `{"due":N,"sent":N,"retired":N,"failed":N}`. `due: 0` with a
 reminder switched on means the current time is outside the one-hour window, or
@@ -103,12 +111,22 @@ select cron.schedule(
     url := 'https://ogylocnwwgakcmhcfjbq.functions.supabase.co/daily-reminder',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
+      'Authorization', 'Bearer <VITE_SUPABASE_ANON_KEY>',
       'x-reminder-secret', '<REMINDER_SECRET>'
     )
   );
   $$
 );
 ```
+
+If `create extension` is refused, enable **pg_cron** and **pg_net** from
+Dashboard → Database → Extensions first, then run the `cron.schedule` call on
+its own.
+
+The anon key rather than the service role key: the job body is stored in
+`cron.job`, readable by anyone with database access, and the anon key is public
+already. The function reaches the database with its own injected service role
+key, so nothing is given up.
 
 Every fifteen minutes, against a one-hour delivery window. The window is what
 makes a late or failed run harmless — a later run inside it still delivers —
@@ -155,3 +173,6 @@ the app today leaves a stale value and gets their reminder.
   skipped from then on. Turning the reminder on again revives it.
 - **Marking happens after sending.** A push-service outage costs a duplicate
   next run rather than a silently skipped day.
+- **Two gates, only one of them real.** The platform's JWT check is satisfied by
+  a key that ships in the bundle, so it keeps nobody out. `REMINDER_SECRET` is
+  what actually stops the endpoint being a public "notify everyone" button.
