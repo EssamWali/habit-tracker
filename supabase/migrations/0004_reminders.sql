@@ -99,6 +99,10 @@ as $fn$
     from public.profiles p
     where p.reminder_enabled
       and p.reminder_minutes is not null
+      -- An unrecognised zone makes `at time zone` raise, which would take the
+      -- whole query down rather than just that row. Skipping is the safe
+      -- failure: no reminder, instead of no reminders for anyone.
+      and exists (select 1 from pg_timezone_names z where z.name = p.timezone)
   ),
   due as (
     select
@@ -144,7 +148,14 @@ as $fn$
   update public.push_subscriptions set failed_at = now() where endpoint = p_endpoint;
 $fn$;
 
--- These read across every user, so they exist for the service role alone.
-revoke all on function public.due_reminders()             from public, anon, authenticated;
-revoke all on function public.mark_reminded(uuid, date)    from public, anon, authenticated;
-revoke all on function public.retire_subscription(text)    from public, anon, authenticated;
+-- These read and write across every user, so they exist for the service role
+-- alone. EXECUTE is granted to PUBLIC by default, so revoking it strips the
+-- service role too and has to be granted back explicitly -- without that, the
+-- edge function gets "permission denied for function due_reminders".
+revoke all on function public.due_reminders()            from public, anon, authenticated;
+revoke all on function public.mark_reminded(uuid, date)  from public, anon, authenticated;
+revoke all on function public.retire_subscription(text)  from public, anon, authenticated;
+
+grant execute on function public.due_reminders()            to service_role;
+grant execute on function public.mark_reminded(uuid, date)  to service_role;
+grant execute on function public.retire_subscription(text)  to service_role;
