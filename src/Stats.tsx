@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { streaks, type StreakResult } from './lib/rules'
+import { flawlessMonths, freezeTokens, streaks, type StreakResult } from './lib/rules'
 import { concernOf, habitStats, type HabitStats, type StatWindow } from './lib/stats'
 import { hueValue } from './lib/palette'
 import type { ResolvedTheme } from './lib/theme'
@@ -30,6 +30,8 @@ interface Row {
   streak: StreakResult
   /** Sort key; null when there is no rate to rank on. */
   concern: number | null
+  tokens: number
+  flawless: number
 }
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -82,6 +84,8 @@ export default function Stats({
         stats,
         streak: streaks(habit, schedules, entries, today),
         concern: concernOf(stats),
+        tokens: freezeTokens(habit, schedules, entries, today),
+        flawless: flawlessMonths(habit, schedules, entries, today).length,
       }
     })
 
@@ -111,7 +115,7 @@ export default function Stats({
       </div>
 
       <ul className="stats">
-        {rows.map(({ habit, stats, streak }) => {
+        {rows.map(({ habit, stats, streak, tokens, flawless }) => {
           const { rate, hits, opportunities, unit } = stats.current
           return (
             <li
@@ -139,6 +143,15 @@ export default function Stats({
                     {' · '}{hits} of {opportunities} {unitWord(unit, opportunities)}
                     {streak.current > 0 && <> · streak {streak.current} {unitWord(unit, streak.current)}</>}
                     {streak.longest > 0 && <> · best {streak.longest}</>}
+                  </p>
+                  <p className="muted note stat-line">
+                    {/* Freezes and Flawless Months are the same fact seen twice:
+                        a clean month is what lets a token carry over. Showing
+                        them together is what makes the token feel earned. */}
+                    <span title="Freeze Tokens: one a month, kept only after a flawless month">
+                      {tokens} {tokens === 1 ? 'freeze' : 'freezes'}
+                    </span>
+                    {flawless > 0 && <> · {flawless} flawless {flawless === 1 ? 'month' : 'months'}</>}
                   </p>
                 </>
               )}

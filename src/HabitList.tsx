@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { today as todayFn } from './lib/day'
-import { createHabit, setNote, toggleDay } from './lib/store'
+import { createHabit, freezeDay, setNote, toggleDay, unfreezeDay } from './lib/store'
 import { useDragOrder } from './useDragOrder'
 import { useEntriesByHabit, useHabits, useNotesByHabit, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
 import { useClearDay } from './lib/reminder'
 import type { ResolvedTheme } from './lib/theme'
 import { hueValue } from './lib/palette'
-import { OUT_OF_RANGE, cellState, resolveSchedule } from './lib/rules'
+import { OUT_OF_RANGE, canFreeze, cellState, freezeTokens, resolveSchedule } from './lib/rules'
 import type { EntryKind, Habit, HabitSchedule, Profile } from './lib/types'
 import Heatmap, { type Range } from './Heatmap'
 import HabitEditor from './HabitEditor'
@@ -199,8 +199,16 @@ export default function HabitList({
             day={picked.day}
             state={cellState(h, schedules, picked.day, day, entries, completed)}
             note={notesByHabit.get(h.id)?.get(picked.day) ?? ''}
+            freeze={{
+              // As of the day being frozen, not today: a Freeze is charged to
+              // the month of the Day it protects (R7).
+              tokens: freezeTokens(h, schedules, entries, picked.day, day),
+              verdict: canFreeze(h, schedules, picked.day, day, entries, completed),
+            }}
             onToggle={() => toggleDay(userId, h.id, picked.day)}
             onSaveNote={text => setNote(h.id, picked.day, text)}
+            onFreeze={() => freezeDay(h, schedules, picked.day, day)}
+            onUnfreeze={() => unfreezeDay(h.id, picked.day)}
             onClose={() => setPicked(null)}
           />
         )

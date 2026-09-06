@@ -109,7 +109,7 @@ hidden. The balance is allowed to go negative rather than clamped — V3-5
 reconciles it, and silently hiding a debt would let the next month's grant be
 eaten by one the user cannot see.
 
-## V3-3 · Spending and refunding a Freeze
+## V3-3 · Spending and refunding a Freeze ✅
 
 Writing a Frozen entry, with eligibility enforced in the store rather than only
 in the UI.
@@ -132,7 +132,20 @@ real Completion.
 **Done when:** the store refuses each ineligible case in a test, not merely the
 UI, and freezing then un-freezing leaves the balance where it started.
 
-## V3-4 · Freezes and Flawless Months in the UI
+**Result:** `freezeDay` and `unfreezeDay` in `store.ts`. 8 further tests.
+
+**Eligibility is re-checked inside the transaction, against the mirror.** The
+whole habit's entries are read there rather than passed in, because the balance
+is derived from every Freeze in its history — a stale snapshot would let two
+quick taps both spend the last token.
+
+`freezeDay` resolves to the refusal reason rather than throwing. Every one of
+them is an ordinary answer the UI has to show, not an error.
+
+`unfreezeDay` only ever touches a Frozen entry. Pointing it at a Completion
+would tombstone it, and "undo the freeze" cannot mean "delete the completion".
+
+## V3-4 · Freezes and Flawless Months in the UI ✅
 
 The Freeze action in the day-detail sheet, the balance shown where it can be
 spent, and a Flawless Month marked somewhere it can be seen.
@@ -148,6 +161,27 @@ from.
 **Done when:** the Freeze action is offered only on days it is actually allowed,
 a spent token is visibly gone, and a frozen day is distinguishable from a
 completed one at a glance in the heatmap.
+
+**Result:** the Freeze action in the day-detail sheet, the balance beside it,
+and freezes plus Flawless Months in the statistics card.
+
+**A frozen Cell is now hollow rather than faded.** It was the habit's colour at
+40% opacity, which at 10px reads as a *weaker completion* rather than as a
+different thing entirely. It is now empty in the middle with a ring in the
+habit's colour — being unfilled is the part that carries the meaning, since the
+day was not done.
+
+**The balance explains where the next token comes from.** An unexplained "2"
+invites the assumption that tokens are free or purchasable, so the refusal
+message spells out the monthly grant and the flawless-month carryover.
+
+**The Mark done button is hidden on a frozen day.** `toggleDay` on a live entry
+tombstones it, so the button would have read "Mark done" and deleted the Freeze
+instead. Un-freezing first is one extra step and no surprises.
+
+**Focus moved from a ref to a query.** The ref was pinned to the toggle button,
+which is now conditional — on a frozen day the sheet would have opened with
+nothing focused at all.
 
 ## V3-5 · Offline overspend reconciliation
 

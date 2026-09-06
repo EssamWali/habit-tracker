@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { parseDay } from './lib/calendar'
 import type { CellState } from './lib/rules'
 import { NOTE_MAX } from './lib/store'
+import { FREEZE_CAP, FREEZE_LOOKBACK_DAYS, type FreezeRefusal } from './lib/rules'
 import type { Day, Habit } from './lib/types'
 
 const LONG_DATE = new Intl.DateTimeFormat(undefined, {
@@ -28,8 +29,16 @@ const DESCRIPTION: Record<CellState, string> = {
  * Today keeps its one-tap toggle: it is touched daily, and it is the one Cell
  * large enough and distinctly outlined enough to hit deliberately.
  */
+/** Why a Freeze cannot be applied here, in the user's terms. */
+const REFUSAL: Record<FreezeRefusal, string> = {
+  'too-old': `Freezes only reach back ${FREEZE_LOOKBACK_DAYS} days.`,
+  future: 'That day has not happened yet.',
+  'not-missed': 'There is nothing to protect on this day.',
+  'no-tokens': 'No Freeze Tokens left.',
+}
+
 export default function DayDetail({
-  habit, day, state, note, onToggle, onSaveNote, onClose,
+  habit, day, state, note, freeze, onToggle, onSaveNote, onFreeze, onUnfreeze, onClose,
 }: {
   habit: Habit
   day: Day
@@ -37,15 +46,22 @@ export default function DayDetail({
   /** Empty unless the day is a live Completion — a tombstoned row's note is
    *  retained in the mirror but never surfaced. */
   note: string
+  freeze: { tokens: number; verdict: true | FreezeRefusal }
   onToggle: () => void
   onSaveNote: (text: string) => void
+  onFreeze: () => void
+  onUnfreeze: () => void
   onClose: () => void
 }) {
-  const firstButton = useRef<HTMLButtonElement>(null)
+  const dialog = useRef<HTMLDivElement>(null)
   const [draft, setDraft] = useState(note)
 
   useEffect(() => {
-    firstButton.current?.focus()
+    // The first button in the sheet, whichever it happens to be. A ref pinned
+    // to one particular button loses focus entirely the moment that button is
+    // conditional — as the toggle now is on a frozen day.
+    dialog.current?.querySelector('button')?.focus()
+
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -56,6 +72,7 @@ export default function DayDetail({
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div
+        ref={dialog}
         className="sheet"
         role="dialog"
         aria-modal="true"
@@ -90,9 +107,46 @@ export default function DayDetail({
           </div>
         ) : null}
 
+        {/* Freezing is offered only where it is genuinely allowed, and the
+            balance is stated alongside so a spend is visibly a spend. An
+            unexplained number invites the assumption that tokens are free. */}
+        {state === 'missed' && (
+          <div className="sheet-freeze">
+            {freeze.verdict === true ? (
+              <>
+                <button className="btn btn--quiet" onClick={() => { onFreeze(); onClose() }}>
+                  Freeze this day
+                </button>
+                <p className="muted note">
+                  Keeps the streak alive without counting as done. Spends one of your{' '}
+                  <strong>{freeze.tokens}</strong>{' '}
+                  {freeze.tokens === 1 ? 'token' : 'tokens'}.
+                </p>
+              </>
+            ) : (
+              <p className="muted note">
+                {REFUSAL[freeze.verdict]}
+                {freeze.verdict === 'no-tokens' && (
+                  <> One is granted at the start of each month, and unused ones only
+                  carry over after a flawless month — up to {FREEZE_CAP}.</>
+                )}
+              </p>
+            )}
+          </div>
+        )}
+
+        {state === 'frozen' && (
+          <div className="sheet-freeze">
+            <button className="btn btn--quiet" onClick={() => { onUnfreeze(); onClose() }}>
+              Undo the freeze
+            </button>
+            <p className="muted note">Gives the token back and lets the day count as missed again.</p>
+          </div>
+        )}
+
         <div className="sheet-actions">
-          {editable && (
-            <button ref={firstButton} className="btn" onClick={() => { onToggle(); onClose() }}>
+          {editable && state !== 'frozen' && (
+            <button className="btn" onClick={() => { onToggle(); onClose() }}>
               {state === 'completed' ? 'Mark not done' : 'Mark done'}
             </button>
           )}

@@ -559,6 +559,26 @@ export function freezeTokens(
 }
 
 /**
+ * Every Flawless Month a Habit has completed, oldest first.
+ *
+ * Walks only whole months that have ended — a month in progress cannot qualify,
+ * so including it would show an achievement that could still evaporate.
+ */
+export function flawlessMonths(
+  habit: Habit,
+  schedules: readonly HabitSchedule[],
+  entries: ReadonlyMap<Day, EntryKind>,
+  today: Day,
+): Month[] {
+  const out: Month[] = []
+  const current = monthOf(today)
+  for (let month = monthOf(habit.start_date); month < current; month = addMonths(month, 1)) {
+    if (isFlawlessMonth(habit, schedules, month, entries, today)) out.push(month)
+  }
+  return out
+}
+
+/**
  * Whether a Freeze may be applied to a Day.
  *
  * Enforced here rather than only in the UI: an ineligible Freeze is a minted

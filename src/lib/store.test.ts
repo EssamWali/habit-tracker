@@ -1,8 +1,10 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from './db'
-import { NOTE_MAX, setNote, toggleDay } from './store'
-import type { DayEntry } from './types'
+import { freezeDay, NOTE_MAX, setNote, toggleDay, unfreezeDay } from './store'
+import { freezeTokens } from './rules'
+import { addDays } from './calendar'
+import type { DayEntry, Habit, HabitSchedule, Weight } from './types'
 
 /**
  * The store's write path, against a real IndexedDB.
@@ -110,5 +112,123 @@ describe('setNote', () => {
     await setNote(HABIT, DAY, 'x'.repeat(NOTE_MAX + 250))
 
     expect((await entry())?.note).toHaveLength(NOTE_MAX)
+  })
+})
+
+/* --------------------------------------------------------- V3-3 freezes -- */
+
+const TODAY = '2026-02-10'
+
+const gymHabit = (over: Partial<Habit> = {}): Habit => ({
+  id: HABIT, user_id: USER, name: 'Gym', colour: 'emerald',
+  start_date: '2026-01-01', archived_at: null, sort_order: 0,
+  updated_at: '', deleted_at: null, ...over,
+})
+
+const dailySchedule = (over: Partial<HabitSchedule> = {}): HabitSchedule[] => ([{
+  id: 's1', habit_id: HABIT, user_id: USER,
+  effective_from: '2026-01-01', cadence_type: 'daily',
+  weekdays: null, weekly_target: null, weight: 2 as Weight,
+  updated_at: '', deleted_at: null, ...over,
+}])
+
+/** A Flawless January, so there is a banked token to spend in February. */
+async function perfectJanuary() {
+  await db.day_entries.clear()
+  await db.outbox.clear()
+  for (let d = '2026-01-01'; d <= '2026-01-31'; d = addDays(d, 1)) {
+    await toggleDay(USER, HABIT, d)
+  }
+  await db.outbox.clear()
+}
+
+/** The habit's live entries, in the shape the rules take. */
+async function ledger() {
+  const rows = await db.day_entries.where('habit_id').equals(HABIT).toArray()
+  return new Map(rows.filter(r => r.deleted_at === null).map(r => [r.day, r.kind]))
+}
+
+describe('freezeDay', () => {
+  it('writes a frozen entry and spends a token', async () => {
+    await perfectJanuary()
+    const h = gymHabit()
+    expect(freezeTokens(h, dailySchedule(), await ledger(), TODAY)).toBe(2)
+
+    expect(await freezeDay(h, dailySchedule(), '2026-02-08', TODAY)).toBe(true)
+
+    const row = await db.day_entries.get([HABIT, '2026-02-08'])
+    expect(row?.kind).toBe('frozen')
+    expect(row?.deleted_at).toBeNull()
+    expect(await db.outbox.count()).toBe(1)
+    expect(freezeTokens(h, dailySchedule(), await ledger(), TODAY)).toBe(1)
+  })
+
+  /**
+   * Every refusal below is enforced here rather than only in the UI. Each is
+   * either a minted token or a laundered Miss, and neither should depend on a
+   * button being hidden.
+   */
+  it('refuses a day outside the lookback window', async () => {
+    await perfectJanuary()
+    expect(await freezeDay(gymHabit(), dailySchedule(), '2026-02-01', TODAY)).toBe('too-old')
+    expect(await db.day_entries.get([HABIT, '2026-02-01'])).toBeUndefined()
+  })
+
+  it('refuses a future day', async () => {
+    await perfectJanuary()
+    expect(await freezeDay(gymHabit(), dailySchedule(), '2026-02-11', TODAY)).toBe('future')
+  })
+
+  it('refuses a completed day rather than downgrading it', async () => {
+    await perfectJanuary()
+    await toggleDay(USER, HABIT, '2026-02-08')
+
+    expect(await freezeDay(gymHabit(), dailySchedule(), '2026-02-08', TODAY)).toBe('not-missed')
+    expect((await db.day_entries.get([HABIT, '2026-02-08']))?.kind).toBe('completed')
+  })
+
+  it('refuses a day the cadence never scheduled', async () => {
+    await perfectJanuary()
+    // 2026-02-08 is a Sunday; this habit only runs on Mondays.
+    const mondays = dailySchedule({ cadence_type: 'weekdays', weekdays: [1] })
+    expect(await freezeDay(gymHabit(), mondays, '2026-02-08', TODAY)).toBe('not-missed')
+  })
+
+  it('refuses once the balance is spent', async () => {
+    await db.day_entries.clear()
+    await db.outbox.clear()
+    const h = gymHabit({ start_date: '2026-02-01' })
+    const sch = dailySchedule({ effective_from: '2026-02-01' })
+
+    // February's single grant, spent.
+    expect(await freezeDay(h, sch, '2026-02-05', TODAY)).toBe(true)
+    expect(await freezeDay(h, sch, '2026-02-06', TODAY)).toBe('no-tokens')
+    expect(await db.day_entries.get([HABIT, '2026-02-06'])).toBeUndefined()
+  })
+})
+
+describe('unfreezeDay', () => {
+  it('refunds the token by tombstoning the entry', async () => {
+    await perfectJanuary()
+    const h = gymHabit()
+    const before = freezeTokens(h, dailySchedule(), await ledger(), TODAY)
+
+    await freezeDay(h, dailySchedule(), '2026-02-08', TODAY)
+    expect(freezeTokens(h, dailySchedule(), await ledger(), TODAY)).toBe(before - 1)
+
+    await unfreezeDay(HABIT, '2026-02-08')
+    expect((await db.day_entries.get([HABIT, '2026-02-08']))?.deleted_at).not.toBeNull()
+    expect(freezeTokens(h, dailySchedule(), await ledger(), TODAY)).toBe(before)
+  })
+
+  // "Undo the freeze" cannot possibly mean "delete the completion".
+  it('leaves a Completion alone', async () => {
+    await perfectJanuary()
+    await toggleDay(USER, HABIT, '2026-02-08')
+
+    await unfreezeDay(HABIT, '2026-02-08')
+    const row = await db.day_entries.get([HABIT, '2026-02-08'])
+    expect(row?.kind).toBe('completed')
+    expect(row?.deleted_at).toBeNull()
   })
 })

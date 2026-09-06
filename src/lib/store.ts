@@ -2,7 +2,8 @@ import Dexie from 'dexie'
 import { db } from './db'
 import { nowStamp } from './day'
 import { currentDay } from './profile'
-import type { CadenceType, Day, DayEntry, Habit, HabitSchedule, OutboxItem, SyncedTable, Weight } from './types'
+import { canFreeze, type FreezeRefusal } from './rules'
+import type { CadenceType, Day, DayEntry, EntryKind, Habit, HabitSchedule, OutboxItem, SyncedTable, Weight } from './types'
 
 export { nowStamp }
 
@@ -154,6 +155,75 @@ export async function setNote(habitId: string, day: Day, note: string): Promise<
     const stamp = nowStamp()
     const row: DayEntry = { ...existing, note: trimmed === '' ? null : trimmed, updated_at: stamp }
 
+    await db.day_entries.put(row)
+    await db.outbox.put({ table: 'day_entries', key: `${habitId}|${day}`, payload: row, created_at: stamp })
+  })
+}
+
+/**
+ * Spend a Freeze Token on a Day (V3-3).
+ *
+ * Eligibility is re-checked here against the mirror, not taken on trust from
+ * the caller. An ineligible Freeze is a minted token or a laundered Miss, and
+ * neither should depend on a button having been hidden — the UI decides what to
+ * *offer*, this decides what is allowed.
+ *
+ * Resolves to the refusal reason rather than throwing, since every one of them
+ * is an ordinary answer the UI needs to show rather than an error.
+ */
+export async function freezeDay(
+  habit: Habit,
+  schedules: readonly HabitSchedule[],
+  day: Day,
+  today: Day,
+): Promise<true | FreezeRefusal> {
+  return db.transaction('rw', [db.day_entries, db.outbox], async () => {
+    // Read the whole habit's entries inside the transaction: the balance is
+    // derived from every Freeze in its history, so a stale snapshot could let
+    // two quick taps both spend the last token.
+    const rows = await db.day_entries.where('habit_id').equals(habit.id).toArray()
+    const entries = new Map<Day, EntryKind>()
+    const completed = new Set<Day>()
+    for (const r of rows) {
+      if (r.deleted_at !== null) continue
+      entries.set(r.day, r.kind)
+      if (r.kind === 'completed') completed.add(r.day)
+    }
+
+    const verdict = canFreeze(habit, schedules, day, today, entries, completed)
+    if (verdict !== true) return verdict
+
+    const existing = await db.day_entries.get([habit.id, day])
+    const stamp = nowStamp()
+    const row: DayEntry = existing
+      ? { ...existing, kind: 'frozen', deleted_at: null, updated_at: stamp }
+      : {
+          habit_id: habit.id, day, user_id: habit.user_id, kind: 'frozen',
+          value: null, note: null, updated_at: stamp, deleted_at: null,
+        }
+
+    await db.day_entries.put(row)
+    await db.outbox.put({ table: 'day_entries', key: `${habit.id}|${day}`, payload: row, created_at: stamp })
+    return true
+  })
+}
+
+/**
+ * Take a Freeze back, refunding the token.
+ *
+ * A tombstone, like un-ticking. The balance is derived, so nothing needs
+ * crediting — the ledger simply loses a spend.
+ *
+ * Only ever touches a Frozen entry: pointing this at a Completion would delete
+ * it, which is not what "undo the freeze" can possibly mean.
+ */
+export async function unfreezeDay(habitId: string, day: Day): Promise<void> {
+  await db.transaction('rw', [db.day_entries, db.outbox], async () => {
+    const existing = await db.day_entries.get([habitId, day])
+    if (!existing || existing.deleted_at !== null || existing.kind !== 'frozen') return
+
+    const stamp = nowStamp()
+    const row: DayEntry = { ...existing, deleted_at: stamp, updated_at: stamp }
     await db.day_entries.put(row)
     await db.outbox.put({ table: 'day_entries', key: `${habitId}|${day}`, payload: row, created_at: stamp })
   })

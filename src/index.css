@@ -195,7 +195,15 @@ body {
    out-of-range Cell leaves holes in the lattice, which is why a habit created
    today rendered as a single floating square in an empty void. */
 .hcell--completed { background: var(--habit-hue); }
-.hcell--frozen { background: var(--habit-hue); opacity: 0.4; }
+/* Frozen: hollow, ringed in the habit's own colour. A Freeze protected the
+   streak but the day was NOT done, and a paler fill of the same hue reads at
+   10px as a weaker completion rather than as a different thing entirely. Empty
+   in the middle is the part that carries the meaning. */
+.hcell--frozen {
+  background: var(--bg);
+  box-shadow: inset 0 0 0 2px var(--habit-hue);
+  opacity: 0.75;
+}
 .hcell--missed { background: var(--cell-missed); }
 /* Unscheduled days are drawn as nothing at all. The grid stays seven rows so
    it aligns with every other habit and with the aggregate, but a Mon/Wed/Fri
@@ -309,6 +317,11 @@ body {
 .danger-confirm { margin-top: 16px; }
 .btn--danger { background: transparent; color: var(--danger); border-color: var(--danger); margin-top: 8px; }
 .btn--danger:disabled { color: var(--muted); border-color: var(--line); }
+
+/* Freezes (V3-4) */
+.sheet-freeze { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.sheet-freeze .btn { width: auto; }
+.sheet-freeze .note { margin-top: 8px; line-height: 1.5; }
 
 /* Notes (V2-4) */
 
