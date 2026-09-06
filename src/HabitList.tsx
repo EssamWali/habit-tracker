@@ -4,7 +4,7 @@ import { createHabit, toggleDay } from './lib/store'
 import { useDragOrder } from './useDragOrder'
 import { useEntriesByHabit, useHabits, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
-import { useTheme } from './lib/theme'
+import type { ResolvedTheme } from './lib/theme'
 import { hueValue } from './lib/palette'
 import { OUT_OF_RANGE, cellState, resolveSchedule } from './lib/rules'
 import type { EntryKind, Habit, HabitSchedule } from './lib/types'
@@ -34,15 +34,22 @@ function cadenceSummary(habit: Habit, schedules: readonly HabitSchedule[], today
   }
 }
 
-export default function HabitList({ userId }: { userId: string }) {
-  const day = todayFn()
+export default function HabitList({
+  userId, dayStartMinutes, resolvedTheme,
+}: {
+  userId: string
+  /** Day Start comes from the profile (R0); this component never assumes 04:00. */
+  dayStartMinutes: number
+  resolvedTheme: ResolvedTheme
+}) {
+  const day = todayFn(new Date(), dayStartMinutes)
   const [showArchived, setShowArchived] = useState(false)
   const habits = useHabits(userId, showArchived)
   const schedules = useSchedules(userId)
   const entriesByHabit = useEntriesByHabit(userId)
   const pending = useOutboxDepth()
   const { status, syncNow } = useSync(userId)
-  const { resolved } = useTheme()
+  const resolved = resolvedTheme
   const drag = useDragOrder(habits)
   const [name, setName] = useState('')
   const [editing, setEditing] = useState<string | null>(null)

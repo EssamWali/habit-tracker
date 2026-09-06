@@ -9,6 +9,7 @@ Postgres on Supabase. Every table carries `user_id`, `updated_at`, and `deleted_
 - `profiles` is the sole exception to `deleted_at`: it is a singleton per user, created by trigger and removed only by cascade, so a tombstone would be a footgun rather than a feature.
 - **`user_id uuid not null`** — denormalised onto every table, including child tables, so each RLS policy is a single-column comparison with no joins.
 - **`synced_at timestamptz not null default now()`** — set by the *server* on every accepted write, and the only safe pull cursor. `updated_at` cannot serve this purpose: being client-set, a device with a lagging clock would write rows beneath a cursor another device had already passed, and they would never be pulled. Two columns, two jobs.
+- `profiles` carries `synced_at` but does not use it as a cursor. It is one row per user, so the client fetches it whole every cycle; the column exists only so `profiles` can share the single `lww_guard` function instead of needing a near-identical copy without the stamp.
 - Dates are `date`, never `timestamptz` (ADR 0003).
 
 ## Tables
@@ -22,6 +23,8 @@ Postgres on Supabase. Every table carries `user_id`, `updated_at`, and `deleted_
 | `theme` | text not null default `'system'` | `system` \| `light` \| `dark` |
 | `reminder_enabled` | bool not null default false | |
 | `reminder_minutes` | int null | minutes past midnight |
+
+`day_start_minutes` is the input to R0 and therefore decides which Day every new Completion lands on. Changing it is **forward-only**: Completions are stored as the plain dates R0 already resolved (ADR 0003), and nothing re-derives them, so a new Day Start cannot move history. Pushed and pulled like any other row, but on its own path — see V2-1.
 
 ### `habits`
 

@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
-import type { EntryKind } from './types'
+import type { EntryKind, Profile } from './types'
 import { alive, habitRange } from './store'
+import { withDefaults } from './profile'
 
 /**
  * Live reads straight from IndexedDB. These re-render on local writes with no
@@ -98,5 +99,21 @@ export function useEntriesByHabit(userId: string | undefined) {
     },
     [userId],
     new Map<string, Map<string, EntryKind>>(),
+  )
+}
+
+/**
+ * The user's settings, with defaults standing in until the row arrives.
+ *
+ * This never returns null, because everything downstream of it — Day Start
+ * above all — is needed to render the first frame. Waiting for a pull would
+ * mean the app has no idea what "today" is until the network answers, which is
+ * precisely the dependency the local-first design exists to remove.
+ */
+export function useProfile(userId: string | undefined): Profile | null {
+  return useLiveQuery(
+    async () => (userId ? withDefaults(await db.profiles.get(userId), userId) : null),
+    [userId],
+    null,
   )
 }

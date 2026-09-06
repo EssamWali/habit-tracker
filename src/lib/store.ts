@@ -1,9 +1,10 @@
 import Dexie from 'dexie'
 import { db } from './db'
-import { today } from './day'
+import { nowStamp } from './day'
+import { currentDay } from './profile'
 import type { CadenceType, Day, DayEntry, Habit, HabitSchedule, OutboxItem, SyncedTable, Weight } from './types'
 
-export const nowStamp = () => new Date().toISOString()
+export { nowStamp }
 
 /** Outbox key for a row: the server's primary key, flattened to a string. */
 const keyOf = (table: SyncedTable, row: Habit | HabitSchedule | DayEntry): string =>
@@ -67,10 +68,13 @@ export async function createHabit(
   userId: string,
   opts: { name?: string; colour?: string } = {},
 ): Promise<Habit> {
+  // Resolved before the transaction opens: reading profiles inside would mean
+  // widening the write scope to a table this never writes.
+  const start = await currentDay(userId)
+
   return db.transaction('rw', [db.habits, db.habit_schedules, db.outbox], async () => {
     const last = await habitRange(userId).last()
     const sort_order = last ? last.sort_order + 1 : 0
-    const start = today()
     const stamp = nowStamp()
 
     const habit: Habit = {
@@ -145,7 +149,7 @@ export async function setSchedule(
     weight: Weight
   },
 ): Promise<void> {
-  const day = today()
+  const day = await currentDay(habit.user_id)
   await db.transaction('rw', [db.habit_schedules, db.outbox], async () => {
     const existing = await db.habit_schedules
       .where('[habit_id+effective_from]')
@@ -166,7 +170,8 @@ export async function setSchedule(
 }
 
 /** Archive: history preserved, Misses stop accruing from today, reversible. */
-export const archiveHabit = (habit: Habit) => updateHabit(habit, { archived_at: today() })
+export const archiveHabit = async (habit: Habit) =>
+  updateHabit(habit, { archived_at: await currentDay(habit.user_id) })
 
 export const restoreHabit = (habit: Habit) => updateHabit(habit, { archived_at: null })
 

@@ -20,3 +20,12 @@ export function today(now: Date = new Date(), dayStartMinutes: number = DEFAULT_
   const d = String(shifted.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
+
+/**
+ * The last-write-wins comparand (ADR 0002): a real instant, not a Day.
+ *
+ * This lives beside today() because it is the other place the clock is read.
+ * The two are unrelated in purpose — one dates a Completion, the other orders
+ * two writes to the same row — and must never be derived from each other.
+ */
+export const nowStamp = (): string => new Date().toISOString()

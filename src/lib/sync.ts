@@ -1,15 +1,19 @@
 import { supabase } from './supabase'
 import { db, getSyncCursor, setSyncCursor } from './db'
-import type { OutboxItem, SyncedTable } from './types'
+import type { OutboxItem, OutboxTable, SyncedTable } from './types'
 
 const TABLES: SyncedTable[] = ['habits', 'habit_schedules', 'day_entries']
+
+/** Push order. profiles joins the queue but is pulled on its own path below. */
+const PUSH_TABLES: OutboxTable[] = [...TABLES, 'profiles']
 const PAGE = 500
 
 /** Conflict target per table. day_entries is keyed by the Cell, not an id. */
-const CONFLICT: Record<SyncedTable, string> = {
+const CONFLICT: Record<OutboxTable, string> = {
   habits: 'id',
   habit_schedules: 'id',
   day_entries: 'habit_id,day',
+  profiles: 'id',
 }
 
 /**
@@ -39,7 +43,7 @@ async function push(): Promise<number> {
   for (const it of items) latest.set(`${it.table}|${it.key}`, it)
 
   let sent = 0
-  for (const table of TABLES) {
+  for (const table of PUSH_TABLES) {
     const rows = [...latest.values()]
       .filter(i => i.table === table)
       .map(i => {
@@ -101,11 +105,41 @@ async function pull(userId: string): Promise<number> {
   return applied
 }
 
+/**
+ * Pull the profile.
+ *
+ * Separate from the generic loop for two reasons: the row is keyed `id` rather
+ * than `user_id`, and there is exactly one of it, so paging by a cursor would
+ * be machinery around a single fetch. Re-reading it every cycle costs one row.
+ *
+ * The last-write-wins comparison is the same as everywhere else — a local edit
+ * still sitting in the outbox must not be overwritten by the server's older
+ * copy of it.
+ */
+async function pullProfile(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) throw new Error(`pull profiles: ${error.message}`)
+  // Absent means the sign-up trigger has not run yet, or this account predates
+  // the table. Either way there is nothing to merge and defaults still apply.
+  if (!data) return 0
+
+  const local = await db.profiles.get(userId)
+  if (local && !newer(data.updated_at, local.updated_at)) return 0
+
+  await db.profiles.put(data)
+  return 1
+}
+
 export interface SyncOutcome { pushed: number; pulled: number }
 
 /** One full cycle. Push first, so local intent is on the server before merging. */
 export async function syncNow(userId: string): Promise<SyncOutcome> {
   const pushed = await push()
-  const pulled = await pull(userId)
+  const pulled = (await pull(userId)) + (await pullProfile(userId))
   return { pushed, pulled }
 }

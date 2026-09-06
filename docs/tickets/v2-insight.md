@@ -12,7 +12,7 @@ share images (v4), month calendar view (dropped in Q22).
 
 ---
 
-## V2-1 · Profile sync and settings
+## V2-1 · Profile sync and settings ✅
 
 The `profiles` table has existed since v0 and nothing reads or writes it. Wire
 it up: Day Start, theme, and the reminder fields.
@@ -27,6 +27,46 @@ so it needs its own sync path rather than being folded into the generic loop.
 **Done when:** changing Day Start on one device changes what "today" means on
 the other after a sync; and changing it does **not** rewrite any history, since
 Completions are stored as plain dates that were already resolved (ADR 0003).
+
+**Result:** `src/lib/profile.ts`, `src/Settings.tsx`, migration `0003`. 9 further
+tests, 77 passing overall.
+
+`profiles` rides the same outbox as everything else, so a setting changed offline
+survives a reload, but it is **pulled on its own path**: the row is keyed `id`
+rather than `user_id` and there is exactly one of it, so cursor paging would be
+machinery around a single fetch. Migration 0003 gives it `synced_at` and the
+`lww_guard` trigger — the column is unused as a cursor and exists so the table
+can share the one guard function rather than needing a stamp-less copy of it.
+
+**Day Start reaches R0 through the store, not through props.** `currentDay(userId)`
+reads the profile from the mirror, and `createHabit`, `setSchedule` and
+`archiveHabit` all resolve their Day through it. Passing the value in from the
+component that happened to have it would mean any future caller could silently
+fall back to the 04:00 default and write a Completion onto the wrong Day.
+
+**A missing profile row renders rather than blocks.** `withDefaults` supplies the
+column defaults, duplicated from `0001_init.sql` on purpose: the client cannot
+ask the server what its defaults are while offline, which is exactly when it
+needs them. The placeholder is stamped at the epoch so it loses every
+last-write-wins comparison — a device that has never synced must not push its
+defaults over a real setting.
+
+**Theme now has one owner.** It was a hook called independently by `App` and
+`HabitList`, which gave each its own copy of the state: toggling in the header
+re-stamped the document but left the habit colours resolved against the previous
+theme. It is now resolved once in `App` and passed down. The synced profile is
+the preference and `localStorage` is a cache of it — the cache cannot be dropped,
+because the no-flash script in `index.html` runs before any of this has parsed.
+On first launch on a device the local choice seeds the profile, so signing in
+does not silently reset the theme to `system`.
+
+Reminder fields sync but have no UI: a toggle that sends no notification is worse
+than no toggle. V2-6 adds the delivery and the control together.
+
+**Not done:** migration 0003 has not been applied to the live project — the CLI
+cannot log in from a non-TTY shell, so it needs pasting into the dashboard SQL
+Editor. Until then profile settings still sync; they simply lack the stale-write
+guard, so a device that was offline for a while could overwrite a newer setting.
 
 ## V2-2 · R8 — completion rate, trend, streak summary
 

@@ -59,8 +59,15 @@ export interface DayEntry {
   deleted_at: Stamp | null
 }
 
-/** Tables that sync. profiles is excluded: it is a singleton handled separately. */
+/** Tables pulled by the generic cursor-paged loop. */
 export type SyncedTable = 'habits' | 'habit_schedules' | 'day_entries'
+
+/**
+ * Tables the outbox can carry. profiles rides the same durable queue as
+ * everything else — a Day Start changed on a plane must survive a reload — but
+ * it is pulled separately, being one row per user rather than a growing set.
+ */
+export type OutboxTable = SyncedTable | 'profiles'
 
 /**
  * A pending mutation. Every write is an upsert — deletes are tombstones
@@ -69,9 +76,9 @@ export type SyncedTable = 'habits' | 'habit_schedules' | 'day_entries'
  */
 export interface OutboxItem {
   seq?: number
-  table: SyncedTable
-  /** Primary key: `id` for habits/schedules, `habit_id|day` for entries. */
+  table: OutboxTable
+  /** Primary key: `id` for habits/schedules/profiles, `habit_id|day` for entries. */
   key: string
-  payload: Habit | HabitSchedule | DayEntry
+  payload: Habit | HabitSchedule | DayEntry | Profile
   created_at: Stamp
 }
