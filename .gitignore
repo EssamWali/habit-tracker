@@ -4,9 +4,17 @@ dev-dist/
 .vercel/
 *.local
 .DS_Store
-# pasted screenshots: shared with Claude, never committed
+# pasted screenshots: shared with Claude, never committed.
+# The rule was Screenshot*.png alone, which a WhatsApp-named .jpeg walked
+# straight past and into a commit. Images live in public/ or docs/; anything
+# dropped at the root is a paste.
 Screenshot*.png
 screenshots/
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+!/public/*.png
 
 # build artifacts
 *.tsbuildinfo
