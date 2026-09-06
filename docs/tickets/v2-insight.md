@@ -202,7 +202,7 @@ completed Cells can carry a Note, so contrast is guaranteed.
 — a live `day_entries` row *is* a Completion — so "was ill" cannot be recorded
 against a day that was missed. Noted here rather than worked around.
 
-## V2-5 · Export and import
+## V2-5 · Export and import ✅
 
 JSON export of everything; CSV export of Completions for spreadsheets. Import
 restores a JSON export.
@@ -216,6 +216,39 @@ resurrect tombstoned rows.
 
 **Done when:** exporting, clearing local data, and importing reproduces the
 original state exactly; and importing the same file twice changes nothing.
+
+**Result:** `src/lib/backup.ts` and `src/Backup.tsx`, under Settings. 16 further
+tests, 123 passing overall. Both acceptance clauses are asserted directly, and
+both were mutation-checked: removing the last-write-wins test fails the
+idempotence tests, and dropping tombstones from the export fails the round trip.
+
+**Export reads the mirror, not Supabase.** The mirror is a complete copy, so an
+export works offline — the escape hatch should not itself depend on the service
+being escaped.
+
+**Tombstones travel.** They are rows, and a restore that dropped them would
+resurrect everything the user has ever deleted. `synced_at` does not: it is
+server-owned and meaningless off the server.
+
+**Import reuses the sync comparison** — same keys, same `newer` test, both now
+exported from their own modules rather than reimplemented. That is what makes a
+second import a no-op and stops a naive insert duplicating every habit.
+Restored rows are enqueued so they reach the server, which costs nothing when
+they are already there: the upserts are idempotent and `lww_guard` rejects
+stale ones.
+
+**Validation happens before anything is written, inside one transaction.** A
+half-applied import is worse than a refused one, because there is no way to tell
+from the outside which half landed.
+
+**A different account's export is refused rather than merged.** Its rows carry
+their original ids, so pushing them would collide with whatever the original
+account still holds, and a rejected push stalls the entire outbox. Export stays
+unconditional — getting data *out* is what ADR 0001 actually rests on.
+
+CSV quotes any field containing a comma, quote or newline. Notes are free text,
+and an unescaped one shifts every following column — the classic way a CSV
+corrupts data silently.
 
 ## V2-6 · Daily reminder
 

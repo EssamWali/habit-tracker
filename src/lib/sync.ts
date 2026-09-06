@@ -21,7 +21,7 @@ const CONFLICT: Record<OutboxTable, string> = {
  * `...+00:00`. Comparing those as strings is lexicographically wrong, so every
  * comparison goes through Date.parse.
  */
-const newer = (a: string, b: string) => Date.parse(a) > Date.parse(b)
+export const newer = (a: string, b: string) => Date.parse(a) > Date.parse(b)
 
 const localKey = (table: SyncedTable, row: any) =>
   table === 'day_entries' ? [row.habit_id, row.day] : row.id

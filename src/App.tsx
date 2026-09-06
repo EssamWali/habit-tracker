@@ -7,6 +7,7 @@ import { dayStartOf, isPlaceholder, saveProfile } from './lib/profile'
 import HabitList from './HabitList'
 import SignIn from './SignIn'
 import Settings from './Settings'
+import Backup from './Backup'
 import ThemeToggle from './ThemeToggle'
 import { readStoredTheme, useTheme, type ThemePreference } from './lib/theme'
 
@@ -91,12 +92,15 @@ export default function App() {
           </div>
 
           {showSettings && profile && (
-            <Settings
-              profile={profile}
-              userId={auth.session.user.id}
-              themePreference={theme.preference}
-              onChooseTheme={theme.choose}
-            />
+            <>
+              <Settings
+                profile={profile}
+                userId={auth.session.user.id}
+                themePreference={theme.preference}
+                onChooseTheme={theme.choose}
+              />
+              <Backup userId={auth.session.user.id} />
+            </>
           )}
 
           {scoped && (

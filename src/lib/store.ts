@@ -7,7 +7,7 @@ import type { CadenceType, Day, DayEntry, Habit, HabitSchedule, OutboxItem, Sync
 export { nowStamp }
 
 /** Outbox key for a row: the server's primary key, flattened to a string. */
-const keyOf = (table: SyncedTable, row: Habit | HabitSchedule | DayEntry): string =>
+export const keyOf = (table: SyncedTable, row: Habit | HabitSchedule | DayEntry): string =>
   table === 'day_entries'
     ? `${(row as DayEntry).habit_id}|${(row as DayEntry).day}`
     : (row as Habit | HabitSchedule).id
