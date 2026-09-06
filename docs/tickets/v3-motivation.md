@@ -24,7 +24,7 @@ per Habit per calendar month is the only way tokens are ever minted.
 
 ---
 
-## V3-1 · R6 — `isFlawlessMonth`
+## V3-1 · R6 — `isFlawlessMonth` ✅
 
 A calendar month in which a Habit was active throughout and every Scheduled Day
 was completed, with no Misses and **no Freezes**.
@@ -48,7 +48,22 @@ Three conditions, each load-bearing:
 and no Misses, a weekly-quota month whose straddling weeks are short, and a
 cadence change mid-month.
 
-## V3-2 · R7 — the Freeze Token balance
+**Result:** `isFlawlessMonth` in `rules.ts`, plus month helpers in
+`calendar.ts`. Covered by `freeze.test.ts`.
+
+**The Freeze check is only load-bearing for weekly quotas, and a mutation test
+is what proved it.** For a daily habit the frozen day also lacks a Completion,
+so the month fails anyway — the original test passed for the wrong reason and
+kept passing with the rule deleted. A weekly quota is the real case: the week
+can meet its target *around* the frozen day, leaving nothing else to fail on,
+and the month would refund the very token that was spent. That test now exists
+and is the only one the deletion breaks.
+
+**A month that owed nothing is not an achievement.** The flag tracking this was
+initially set for any *covered* day rather than any *Scheduled* one, so a
+cadence scheduling nothing all month came out Flawless. Caught by a test.
+
+## V3-2 · R7 — the Freeze Token balance ✅
 
 `freezeTokens(habit, asOf) → int`. **Derived, never stored** — a stored balance
 is a second source of truth that sync would have to reconcile, and the ledger
@@ -71,6 +86,28 @@ a negative balance.
 after a Flawless one, and a cross-month Freeze spending the right month's grant.
 Plus the loop that must not exist: a month whose only blemish is a Freeze must
 not carry over.
+
+**Result:** `freezeTokens` and `canFreeze` in `rules.ts`. Derived on every read,
+nothing stored.
+
+**Only the month's own grant expires — the bank survives.** The first cut zeroed
+the balance after any imperfect month, which contradicts Q23: stacking is
+conditional on a clean month, but the stack is not destructible by a dirty one.
+Expressed as `min(balance, banked)`, which says it in one line: having spent
+anything leaves the balance at or below what was banked, so nothing expires
+because the grant was used; having spent nothing leaves it one above, and the
+grant falls away.
+
+**A Freeze is charged to the month of the Day it protects**, not the day it was
+applied, and the spend is deducted before that month's expiry runs. Otherwise a
+Freeze applied on 2 October to 28 September would spend a token that had already
+expired, and reappear as a debt.
+
+`canFreeze` lives beside the rule rather than in the UI. An ineligible Freeze is
+a minted token or a laundered Miss, and neither should depend on a button being
+hidden. The balance is allowed to go negative rather than clamped — V3-5
+reconciles it, and silently hiding a debt would let the next month's grant be
+eaten by one the user cannot see.
 
 ## V3-3 · Spending and refunding a Freeze
 

@@ -1,4 +1,7 @@
-import { addDays, daysBetween, isoWeekday, parseDay, startOfIsoWeek } from './calendar'
+import {
+  addDays, addMonths, daysBetween, endOfMonth, isoWeekday, monthOf,
+  parseDay, startOfIsoWeek, startOfMonth, type Month,
+} from './calendar'
 import type { CadenceType, Day, EntryKind, Habit, HabitSchedule, Weight } from './types'
 
 /**
@@ -401,4 +404,187 @@ function bandFor(ratio: number): 0 | 1 | 2 | 3 | 4 {
   if (ratio <= 0.5) return 2
   if (ratio <= 0.75) return 3
   return 4
+}
+
+/* ------------------------------------------------------------------ R6 --- */
+
+/**
+ * R6 · Was this calendar month Flawless for this Habit?
+ *
+ * Three conditions, each load-bearing:
+ *
+ * - **Active throughout.** A partial month never qualifies. Otherwise creating
+ *   a Habit on the 28th and completing three days would earn the same reward as
+ *   a whole clean month.
+ *
+ * - **No Freezes.** The one that matters most. If a Freeze did not disqualify,
+ *   spending a token could produce the Flawless Month that refunds it — a loop
+ *   that prints free tokens.
+ *
+ * - **Complete in the cadence's own unit.** Every Scheduled Day completed, or
+ *   for a weekly quota, every ISO week *fully contained* in the month meeting
+ *   its target. A week straddling a month boundary belongs to neither: a quota
+ *   cannot fairly be demanded of four days, and counting it in both months
+ *   would let one good week rescue two.
+ *
+ * `today` bounds it: a month still in progress cannot be Flawless, because R1
+ * puts its remaining days out of range and they are not yet completed.
+ */
+export function isFlawlessMonth(
+  habit: Habit,
+  schedules: readonly HabitSchedule[],
+  month: Month,
+  entries: ReadonlyMap<Day, EntryKind>,
+  today: Day,
+): boolean {
+  const first = startOfMonth(month)
+  const last = endOfMonth(month)
+
+  // Active for the whole month, and the whole month is behind us.
+  if (daysBetween(habit.start_date, first) < 0) return false
+  if (habit.archived_at && daysBetween(last, habit.archived_at) <= 0) return false
+  if (daysBetween(last, today) < 0) return false
+
+  const completed = new Set<Day>()
+  for (const [day, kind] of entries) if (kind === 'completed') completed.add(day)
+
+  // A single Freeze anywhere in the month ends it, before anything else is
+  // checked: the month cannot be flawless and the token must not come back.
+  for (let day = first; daysBetween(day, last) >= 0; day = addDays(day, 1)) {
+    if (entries.get(day) === 'frozen') return false
+  }
+
+  let sawAnySchedule = false
+
+  for (let day = first; daysBetween(day, last) >= 0; day = addDays(day, 1)) {
+    const s = resolveSchedule(habit, schedules, day, today)
+    if (s === OUT_OF_RANGE) return false      // a gap in cover is not flawless
+
+    if (s.cadence_type === 'weekly_quota') continue   // judged per week below
+    if (!isScheduled(habit, schedules, day, today, completed)) continue
+    // Set only for a genuinely Scheduled Day, not merely a covered one: a
+    // cadence that schedules nothing all month owes nothing, and a month that
+    // owed nothing is not an achievement.
+    sawAnySchedule = true
+    if (!completed.has(day)) return false
+  }
+
+  // Weekly-quota spans, week by week, counting only whole weeks inside the month.
+  for (let week = startOfIsoWeek(first); daysBetween(week, last) >= 0; week = addDays(week, 7)) {
+    if (daysBetween(first, week) < 0) continue                 // starts before the month
+    if (daysBetween(addDays(week, 6), last) < 0) continue      // ends after the month
+
+    const s = resolveSchedule(habit, schedules, week, today)
+    if (s === OUT_OF_RANGE || s.cadence_type !== 'weekly_quota') continue
+
+    sawAnySchedule = true
+    const hits = Array.from({ length: 7 }, (_, i) => addDays(week, i))
+      .filter(d => completed.has(d)).length
+    if (hits < (s.weekly_target ?? 1)) return false
+  }
+
+  // A month that owed nothing is not an achievement.
+  return sawAnySchedule
+}
+
+/* ------------------------------------------------------------------ R7 --- */
+
+/** The most Freeze Tokens a Habit can hold at once. */
+export const FREEZE_CAP = 3
+
+/** How recently a Day must fall for a Freeze to be applied to it. */
+export const FREEZE_LOOKBACK_DAYS = 7
+
+/**
+ * R7 · Freeze Tokens available as of a Day.
+ *
+ * Derived, never stored. A stored balance is a second source of truth that sync
+ * would have to reconcile, and the ledger that produces it is already sitting
+ * in the entries.
+ *
+ * Walking calendar months from the Start Date:
+ *
+ *   grant +1  →  spend one per Frozen entry dated in the month  →  expire an
+ *   unused grant at month end unless the month was Flawless
+ *
+ * That order is not cosmetic. A Freeze applied on 2 October to 28 September
+ * spends a *September* token, and it has to spend it before September's expiry
+ * runs — otherwise the token evaporates and comes back as a negative balance.
+ *
+ * The balance can still go negative through the one case last-write-wins does
+ * not resolve: two offline devices each spending the last token. That is
+ * reconciled in V3-5 rather than clamped away here, because silently hiding a
+ * debt would let the next month's grant be eaten by one the user cannot see.
+ */
+export function freezeTokens(
+  habit: Habit,
+  schedules: readonly HabitSchedule[],
+  entries: ReadonlyMap<Day, EntryKind>,
+  asOf: Day,
+  today: Day = asOf,
+): number {
+  const frozenPerMonth = new Map<Month, number>()
+  for (const [day, kind] of entries) {
+    if (kind !== 'frozen') continue
+    if (daysBetween(day, asOf) < 0) continue          // not spent yet, as of asOf
+    const m = monthOf(day)
+    frozenPerMonth.set(m, (frozenPerMonth.get(m) ?? 0) + 1)
+  }
+
+  const current = monthOf(asOf)
+  let balance = 0
+
+  for (let month = monthOf(habit.start_date); month <= current; month = addMonths(month, 1)) {
+    const banked = balance                                    // carried in from before
+    balance = Math.min(FREEZE_CAP, balance + 1)               // this month's grant
+    balance -= frozenPerMonth.get(month) ?? 0                 // spends dated in it
+
+    // The month still running has not ended, so nothing expires yet.
+    if (month === current) break
+
+    // Only *this month's grant* expires, and only if the month was not
+    // Flawless. Tokens banked from earlier Flawless months survive: Q23 makes
+    // stacking conditional on a clean month, not the bank destructible by a
+    // bad one.
+    //
+    // min(balance, banked) says that in one line. Having spent anything leaves
+    // balance at or below banked, so nothing expires — the grant was used. Not
+    // having spent leaves balance one above, and the grant falls away.
+    if (!isFlawlessMonth(habit, schedules, month, entries, today)) {
+      balance = Math.min(balance, banked)
+    }
+  }
+
+  return Math.min(FREEZE_CAP, balance)
+}
+
+/**
+ * Whether a Freeze may be applied to a Day.
+ *
+ * Enforced here rather than only in the UI: an ineligible Freeze is a minted
+ * token or a laundered Miss, and neither should depend on a button being
+ * hidden.
+ */
+export type FreezeRefusal =
+  | 'too-old' | 'future' | 'not-missed' | 'no-tokens'
+
+export function canFreeze(
+  habit: Habit,
+  schedules: readonly HabitSchedule[],
+  day: Day,
+  today: Day,
+  entries: ReadonlyMap<Day, EntryKind>,
+  completed: ReadonlySet<Day>,
+): true | FreezeRefusal {
+  const age = daysBetween(day, today)
+  if (age < 0) return 'future'
+  if (age >= FREEZE_LOOKBACK_DAYS) return 'too-old'
+
+  // Only a Day that actually went wrong. Freezing an unscheduled Day would let
+  // someone bank tokens against days they never owed; freezing a completed one
+  // would downgrade a real Completion.
+  if (cellState(habit, schedules, day, today, entries, completed) !== 'missed') return 'not-missed'
+
+  if (freezeTokens(habit, schedules, entries, day, today) < 1) return 'no-tokens'
+  return true
 }

@@ -33,6 +33,28 @@ export function startOfIsoWeek(day: Day): Day {
   return addDays(day, -(isoWeekday(parseDay(day)) - 1))
 }
 
+/** `YYYY-MM`, the key a calendar month is identified by. */
+export type Month = string
+
+export const monthOf = (day: Day): Month => day.slice(0, 7)
+
+export function startOfMonth(month: Month): Day {
+  return `${month}-01`
+}
+
+/** Day 0 of the following month is the last day of this one, leap years included. */
+export function endOfMonth(month: Month): Day {
+  const [y, m] = month.split('-').map(Number)
+  return formatDay(new Date(y!, m!, 0))
+}
+
+/** The month `n` months after `month`. */
+export function addMonths(month: Month, n: number): Month {
+  const [y, m] = month.split('-').map(Number)
+  const d = new Date(y!, m! - 1 + n, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 export interface Grid {
   /** Columns of exactly 7 Days, Monday first. The final column may run past
    *  `end` into the future; those Cells render as out-of-range. */
