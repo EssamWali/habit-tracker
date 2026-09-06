@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { today as todayFn } from './lib/day'
-import { createHabit, freezeDay, setNote, toggleDay, unfreezeDay } from './lib/store'
+import { createHabit, freezeDay, reconcileFreezes, setNote, toggleDay, unfreezeDay, type RevertedFreeze } from './lib/store'
 import { useDragOrder } from './useDragOrder'
 import { useEntriesByHabit, useHabits, useNotesByHabit, useOutboxDepth, useSchedules } from './lib/useLocalStore'
 import { useSync } from './lib/useSync'
@@ -62,6 +62,20 @@ export default function HabitList({
   // Publishes "nothing left owing today" for the reminder job, so suppression
   // never needs a second copy of the rules on the server (V2-6).
   useClearDay(userId, profile, habits, schedules, entriesByHabit, day)
+
+  const [reverted, setReverted] = useState<RevertedFreeze[]>([])
+
+  // Runs whenever entries change, which includes after a pull — the moment two
+  // devices' Freezes first meet. Idempotent: reverting tombstones the entry, so
+  // the next pass finds nothing and writes nothing (V3-5).
+  useEffect(() => {
+    if (habits.length === 0) return
+    let live = true
+    reconcileFreezes(habits, schedules, day).then(undone => {
+      if (live && undone.length > 0) setReverted(prev => [...prev, ...undone])
+    })
+    return () => { live = false }
+  }, [habits, schedules, entriesByHabit, day])
   const [name, setName] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [picked, setPicked] = useState<{ habitId: string; day: string } | null>(null)
@@ -213,6 +227,19 @@ export default function HabitList({
           />
         )
       })()}
+
+      {reverted.length > 0 && (
+        // Said out loud rather than fixed silently: a streak that un-breaks
+        // itself without explanation is worse than one that says why.
+        <div className="notice" role="status">
+          <p>
+            {reverted.length === 1 ? 'A freeze was undone' : `${reverted.length} freezes were undone`}
+            {' '}because the same token had been spent on another device:{' '}
+            {reverted.map(r => `${r.habitName} on ${r.day}`).join(', ')}.
+          </p>
+          <button className="linkish" onClick={() => setReverted([])}>Dismiss</button>
+        </div>
+      )}
 
       <p className={status.state === 'error' ? 'error' : 'muted note'}>
         {syncLabel(status)}

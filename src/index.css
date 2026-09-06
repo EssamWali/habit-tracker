@@ -318,6 +318,13 @@ body {
 .btn--danger { background: transparent; color: var(--danger); border-color: var(--danger); margin-top: 8px; }
 .btn--danger:disabled { color: var(--muted); border-color: var(--line); }
 
+.notice {
+  border: 1px solid var(--line); border-left: 3px solid var(--danger);
+  border-radius: 7px; padding: 10px 12px; margin-top: 16px;
+  font-size: 0.8125rem; line-height: 1.5;
+}
+.notice p { margin: 0 0 6px; }
+
 /* Freezes (V3-4) */
 .sheet-freeze { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
 .sheet-freeze .btn { width: auto; }

@@ -2,7 +2,7 @@ import {
   addDays, addMonths, daysBetween, endOfMonth, isoWeekday, monthOf,
   parseDay, startOfIsoWeek, startOfMonth, type Month,
 } from './calendar'
-import type { CadenceType, Day, EntryKind, Habit, HabitSchedule, Weight } from './types'
+import type { CadenceType, Day, EntryKind, Habit, HabitSchedule, Stamp, Weight } from './types'
 
 /**
  * R1–R2. Pure functions over rows: no database, no clock. `today` is a
@@ -511,10 +511,11 @@ export const FREEZE_LOOKBACK_DAYS = 7
  * spends a *September* token, and it has to spend it before September's expiry
  * runs — otherwise the token evaporates and comes back as a negative balance.
  *
- * The balance can still go negative through the one case last-write-wins does
- * not resolve: two offline devices each spending the last token. That is
- * reconciled in V3-5 rather than clamped away here, because silently hiding a
- * debt would let the next month's grant be eaten by one the user cannot see.
+ * The result never goes below zero. Two offline devices can each spend the last
+ * token — the one case last-write-wins does not resolve — and the honest
+ * reading of that is not "you have -1 tokens" but "one of those Freezes is not
+ * paid for". `overspentFreezes` names which, and V3-5 reverts them; showing a
+ * negative here would just be a debt the user could not act on.
  */
 export function freezeTokens(
   habit: Habit,
@@ -555,7 +556,68 @@ export function freezeTokens(
     }
   }
 
-  return Math.min(FREEZE_CAP, balance)
+  return Math.max(0, Math.min(FREEZE_CAP, balance))
+}
+
+/** A Frozen entry, with the stamp that decides which of two spends came first. */
+export interface FrozenSpend { day: Day; updated_at: Stamp }
+
+/**
+ * Freezes that were spent without a token to cover them.
+ *
+ * The one place the last-write-wins model does not resolve itself: two devices
+ * offline can each spend the last token, both writes are valid, and both sync.
+ * Nothing about either row is wrong on its own — the conflict only exists in
+ * the total.
+ *
+ * Resolution keeps the **earliest** spends by `updated_at` up to what each month
+ * could afford and names the rest for reversion. Ordering by the stamp the
+ * originating device wrote, with the Day as the tiebreak, is what makes both
+ * devices reach the same answer regardless of which syncs first — a rule that
+ * depended on arrival order would have them disagree forever.
+ *
+ * Returned rather than applied, so the caller can tell the user what happened.
+ * A streak that quietly un-breaks itself is worse than one that explains why.
+ */
+export function overspentFreezes(
+  habit: Habit,
+  schedules: readonly HabitSchedule[],
+  entries: ReadonlyMap<Day, EntryKind>,
+  spends: readonly FrozenSpend[],
+  today: Day,
+): Day[] {
+  const byMonth = new Map<Month, FrozenSpend[]>()
+  for (const spend of spends) {
+    const m = monthOf(spend.day)
+    const list = byMonth.get(m)
+    if (list) list.push(spend)
+    else byMonth.set(m, [spend])
+  }
+
+  const current = monthOf(today)
+  const excess: Day[] = []
+  let balance = 0
+
+  for (let month = monthOf(habit.start_date); month <= current; month = addMonths(month, 1)) {
+    const banked = balance
+    balance = Math.min(FREEZE_CAP, balance + 1)
+
+    const inMonth = (byMonth.get(month) ?? []).slice().sort((a, b) =>
+      Date.parse(a.updated_at) - Date.parse(b.updated_at) || a.day.localeCompare(b.day))
+
+    // Whatever the month could not afford is unpaid for, in the order it was
+    // written. The earliest spends stand.
+    const affordable = Math.max(0, balance)
+    for (const spend of inMonth.slice(affordable)) excess.push(spend.day)
+    balance -= Math.min(affordable, inMonth.length)
+
+    if (month === current) break
+    if (!isFlawlessMonth(habit, schedules, month, entries, today)) {
+      balance = Math.min(balance, banked)
+    }
+  }
+
+  return excess
 }
 
 /**

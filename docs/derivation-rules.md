@@ -104,7 +104,13 @@ Derived, never stored. Walking months from `start_date`:
 
 A Freeze may only be applied to a day within the **last 7 days**, and only where `cellState` would otherwise be `missed`.
 
-**Offline overspend.** Two devices offline can each spend the last token. On sync the balance recomputes negative; resolve by keeping the earliest freezes by `updated_at` up to the available balance and reverting the excess to `missed`, then surfacing what happened. This is the one place the LWW model does not fully self-resolve, and it is bounded, rare, and recoverable rather than silent.
+**Offline overspend.** Two devices offline can each spend the last token. Resolve by keeping the earliest freezes by `updated_at` up to the available balance and reverting the excess to `missed`, then surfacing what happened. This is the one place the LWW model does not fully self-resolve, and it is bounded, rare, and recoverable rather than silent.
+
+*Amended in V3-5.* This originally said the balance "recomputes negative". It does not: the excess is identified inside the same monthly walk that computes the balance, so each month affords what it affords and spends beyond that are simply unpaid. The balance stays at or above zero throughout. A negative number was never something the user could act on, where "this Freeze is not paid for" is.
+
+The tiebreak matters as much as the ordering. Two spends can carry identical `updated_at`, so the Day is compared second — without it, two devices can order the same pair differently and each spend the rest of time undoing the other's Freeze.
+
+**Only the month's own grant expires.** Q23 made stacking conditional on a Flawless Month; it did not make the bank destructible by a bad one. Tokens carried in from earlier Flawless months survive an imperfect one — it is that month's `+1` that is lost, and only if it went unspent.
 
 ## R8 · `habitStats(habit, window) → {rate, trend}`
 

@@ -2,7 +2,7 @@ import Dexie from 'dexie'
 import { db } from './db'
 import { nowStamp } from './day'
 import { currentDay } from './profile'
-import { canFreeze, type FreezeRefusal } from './rules'
+import { canFreeze, overspentFreezes, type FreezeRefusal, type FrozenSpend } from './rules'
 import type { CadenceType, Day, DayEntry, EntryKind, Habit, HabitSchedule, OutboxItem, SyncedTable, Weight } from './types'
 
 export { nowStamp }
@@ -227,6 +227,48 @@ export async function unfreezeDay(habitId: string, day: Day): Promise<void> {
     await db.day_entries.put(row)
     await db.outbox.put({ table: 'day_entries', key: `${habitId}|${day}`, payload: row, created_at: stamp })
   })
+}
+
+export interface RevertedFreeze { habitId: string; habitName: string; day: Day }
+
+/**
+ * Undo Freezes that no token ever paid for (V3-5).
+ *
+ * Two devices offline can each spend the last token. Both rows are valid, both
+ * sync, and only the total is wrong — so this runs after entries change rather
+ * than at the moment of writing, when the conflict does not exist yet.
+ *
+ * Idempotent by construction: reverting tombstones the entry, so the next pass
+ * sees no excess and writes nothing. That is what stops it looping against its
+ * own output.
+ *
+ * Returns what it undid so the caller can say so. A streak that quietly
+ * un-breaks itself is worse than one that explains why it broke.
+ */
+export async function reconcileFreezes(
+  habits: readonly Habit[],
+  schedules: readonly HabitSchedule[],
+  today: Day,
+): Promise<RevertedFreeze[]> {
+  const reverted: RevertedFreeze[] = []
+
+  for (const habit of habits) {
+    const rows = (await db.day_entries.where('habit_id').equals(habit.id).toArray())
+      .filter(r => r.deleted_at === null)
+    if (!rows.some(r => r.kind === 'frozen')) continue
+
+    const entries = new Map<Day, EntryKind>(rows.map(r => [r.day, r.kind]))
+    const spends: FrozenSpend[] = rows
+      .filter(r => r.kind === 'frozen')
+      .map(r => ({ day: r.day, updated_at: r.updated_at }))
+
+    for (const day of overspentFreezes(habit, schedules, entries, spends, today)) {
+      await unfreezeDay(habit.id, day)
+      reverted.push({ habitId: habit.id, habitName: habit.name, day })
+    }
+  }
+
+  return reverted
 }
 
 /** Patch a Habit's own fields. Cadence and weight do NOT live here (ADR 0004). */

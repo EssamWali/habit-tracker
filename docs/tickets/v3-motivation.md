@@ -183,7 +183,7 @@ instead. Un-freezing first is one extra step and no surprises.
 which is now conditional — on a frozen day the sheet would have opened with
 nothing focused at all.
 
-## V3-5 · Offline overspend reconciliation
+## V3-5 · Offline overspend reconciliation ✅
 
 The one place the last-write-wins model does not fully resolve itself, called
 out in R7 during design and deferred until there was something to reconcile.
@@ -202,3 +202,29 @@ the next month's grant be consumed by a debt the user cannot see.
 
 **Done when:** a simulated double-spend reconciles deterministically regardless
 of which device syncs first, and the user is told which Freeze was reverted.
+
+**Result:** `overspentFreezes` in `rules.ts`, `reconcileFreezes` in `store.ts`,
+and a notice in the habit list. 7 further tests, 174 passing overall.
+
+**The balance no longer goes negative; the ledger names the excess instead.**
+The design note said to let it go negative and reconcile after. Modelling it in
+the walk turned out cleaner: each month affords what it affords, spends beyond
+that are simply unpaid, and the balance stays truthful. "-1 tokens" was never
+something a user could act on — "this Freeze is not paid for" is.
+
+**Determinism comes from the originating device's stamp, not arrival order**,
+with the Day as a tiebreak. A rule keyed on arrival would have two devices
+disagree forever, each undoing the other's Freeze. Both directions are tested,
+and sorting by arrival instead breaks exactly those three tests.
+
+**Reconciliation runs when entries change, not when a Freeze is written.** At
+the moment of writing there is no conflict — both devices were offline and both
+spends were valid. The conflict comes into existence on the pull that brings
+them together.
+
+**Idempotent by construction.** Reverting tombstones the entry, so the next pass
+finds no excess and writes nothing. That is what keeps it from looping against
+its own output.
+
+**It says what it did.** A streak that quietly un-breaks itself is worse than
+one that explains why it broke, so the notice names the habit and the day.

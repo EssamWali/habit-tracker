@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canFreeze, freezeTokens, isFlawlessMonth, FREEZE_CAP } from './rules'
+import { canFreeze, freezeTokens, isFlawlessMonth, overspentFreezes, FREEZE_CAP, type FrozenSpend } from './rules'
 import { addDays, endOfMonth, startOfMonth } from './calendar'
 import type { Day, EntryKind, Habit, HabitSchedule, Weight } from './types'
 
@@ -273,5 +273,92 @@ describe('canFreeze', () => {
     // No history at all, and February's grant already spent.
     const bare = map(['2026-02-05', 'frozen'])
     expect(canFreeze(h, DAILY, '2026-02-08', TODAY, bare, new Set())).toBe('no-tokens')
+  })
+})
+
+/* ------------------------------------------------- V3-5 overspend --------- */
+
+/**
+ * The one case last-write-wins does not resolve.
+ *
+ * Two devices offline each spend the last token. Neither row is wrong on its
+ * own; the conflict exists only in the total.
+ */
+describe('overspentFreezes', () => {
+  const h = habit({ start_date: '2026-02-01' })
+  const SCH = [schedule({ effective_from: '2026-02-01' })]
+  const TODAY: Day = '2026-02-20'
+
+  const spend = (day: Day, updated_at: string): FrozenSpend => ({ day, updated_at })
+
+  it('finds nothing when every Freeze is paid for', () => {
+    const entries = map(['2026-02-10', 'frozen'])
+    expect(overspentFreezes(h, SCH, entries, [spend('2026-02-10', '2026-02-10T09:00:00Z')], TODAY))
+      .toEqual([])
+  })
+
+  it('reverts the later of two spends of the same token', () => {
+    const entries = map(['2026-02-10', 'frozen'], ['2026-02-12', 'frozen'])
+    const spends = [
+      spend('2026-02-12', '2026-02-12T18:00:00Z'),   // written second
+      spend('2026-02-10', '2026-02-10T09:00:00Z'),   // written first, stands
+    ]
+    expect(overspentFreezes(h, SCH, entries, spends, TODAY)).toEqual(['2026-02-12'])
+  })
+
+  /**
+   * The property that matters: both devices must reach the same answer whatever
+   * order the rows arrive in. A rule that depended on arrival order would have
+   * them disagree forever, each undoing the other's Freeze.
+   */
+  it('is independent of the order the rows arrive in', () => {
+    const entries = map(['2026-02-10', 'frozen'], ['2026-02-12', 'frozen'])
+    const a = spend('2026-02-10', '2026-02-10T09:00:00Z')
+    const b = spend('2026-02-12', '2026-02-12T18:00:00Z')
+
+    expect(overspentFreezes(h, SCH, entries, [a, b], TODAY))
+      .toEqual(overspentFreezes(h, SCH, entries, [b, a], TODAY))
+  })
+
+  it('breaks a tie on identical stamps by Day, deterministically', () => {
+    const entries = map(['2026-02-10', 'frozen'], ['2026-02-12', 'frozen'])
+    const same = '2026-02-14T12:00:00Z'
+    const a = spend('2026-02-10', same)
+    const b = spend('2026-02-12', same)
+
+    expect(overspentFreezes(h, SCH, entries, [a, b], TODAY)).toEqual(['2026-02-12'])
+    expect(overspentFreezes(h, SCH, entries, [b, a], TODAY)).toEqual(['2026-02-12'])
+  })
+
+  it('reverts several when a month is badly oversold', () => {
+    const days: Day[] = ['2026-02-08', '2026-02-10', '2026-02-12', '2026-02-14']
+    const entries = map(...days.map(d => [d, 'frozen'] as [Day, EntryKind]))
+    const spends = days.map((d, i) => spend(d, `2026-02-0${i + 1}T09:00:00Z`))
+
+    // February grants exactly one, so three of the four are unpaid.
+    expect(overspentFreezes(h, SCH, entries, spends, TODAY))
+      .toEqual(['2026-02-10', '2026-02-12', '2026-02-14'])
+  })
+
+  it('charges each month its own budget', () => {
+    const early = habit({ start_date: '2026-01-01' })
+    // A Flawless January banks a second token, so February can afford two.
+    const entries = map(
+      ...fullMonth('2026-01'),
+      ['2026-02-10', 'frozen'], ['2026-02-12', 'frozen'], ['2026-02-14', 'frozen'],
+    )
+    const spends = [
+      spend('2026-02-10', '2026-02-10T09:00:00Z'),
+      spend('2026-02-12', '2026-02-12T09:00:00Z'),
+      spend('2026-02-14', '2026-02-14T09:00:00Z'),
+    ]
+    expect(overspentFreezes(early, DAILY, entries, spends, TODAY)).toEqual(['2026-02-14'])
+  })
+
+  it('never reports a negative balance to go with it', () => {
+    const entries = map(['2026-02-10', 'frozen'], ['2026-02-12', 'frozen'])
+    // "-1 tokens" is not a thing the user can act on; the honest reading is
+    // that one of those Freezes is not paid for.
+    expect(freezeTokens(h, SCH, entries, TODAY)).toBe(0)
   })
 })
