@@ -249,7 +249,7 @@ CSV quotes any field containing a comma, quote or newline. Notes are free text,
 and an unescaped one shifts every following column — the classic way a CSV
 corrupts data silently.
 
-## V2-6 · Daily reminder ✅ (client and function built; not yet switched on)
+## V2-6 · Daily reminder ✅
 
 One configurable daily nudge (Q16), suppressed when the day is already
 complete, so a notification always means something.
@@ -299,8 +299,17 @@ endpoints it must never send to. Subscribing needs the network anyway.
 hands over authorship of the whole service worker, and the offline shell it
 already generates works and was verified in v0.
 
-**Not switched on.** The keypair is generated and the public half is deployed,
-but four steps need a human: apply migration 0004, set the function secrets,
-`supabase functions deploy` (interactive login), and schedule the cron. The
-runbook has each one. Until then the setting reports that push is unavailable
-rather than failing at the moment someone taps it.
+**Live and verified end to end.** Migration 0004 applied, secrets set, function
+deployed, cron scheduled every fifteen minutes, and a notification delivered to
+a real device with the app closed.
+
+Four things were confirmed against the deployment rather than assumed:
+
+- `due_reminders()` returns 200 through the RPC, so the `security definer`
+  function and the explicit `service_role` grant both work.
+- The `REMINDER_SECRET` guard refuses a wrong secret and a missing one.
+- After a delivery the same call returns `due: 0` — `last_notified_day` is
+  doing its job, and the nudge does not repeat within the day.
+- Supabase's gateway rejects a request with no `Authorization` header before
+  the function runs at all, which the runbook originally missed. Corrected: the
+  cron sends the anon key alongside the secret.
