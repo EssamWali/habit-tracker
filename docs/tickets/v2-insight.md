@@ -63,10 +63,9 @@ does not silently reset the theme to `system`.
 Reminder fields sync but have no UI: a toggle that sends no notification is worse
 than no toggle. V2-6 adds the delivery and the control together.
 
-**Not done:** migration 0003 has not been applied to the live project — the CLI
-cannot log in from a non-TTY shell, so it needs pasting into the dashboard SQL
-Editor. Until then profile settings still sync; they simply lack the stale-write
-guard, so a device that was offline for a while could overwrite a newer setting.
+Migration 0003 was applied through the dashboard SQL Editor (the CLI cannot log
+in from a non-TTY shell) and verified: `profiles.synced_at` exists, and the
+`lww_guard` trigger committed in the same transaction.
 
 ## V2-2 · R8 — completion rate, trend, streak summary ✅
 
