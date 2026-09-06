@@ -137,8 +137,62 @@ const THRESHOLD = {
   week: { gold: 4, tier2: 12 },
 } as const
 
-type Outcome = 'complete' | 'freeze' | 'fail' | 'pending'
-interface Unit { outcome: Outcome; days: Day[] }
+export type Outcome = 'complete' | 'freeze' | 'fail' | 'pending'
+
+/**
+ * One evaluated period of a Habit's history.
+ *
+ * `at` anchors it: the Day itself for a daily unit, the ISO week's Monday for a
+ * weekly one. It is what lets a window be applied to units without re-deriving
+ * them — `days` is empty for anything but a Completion, so it cannot date a
+ * failure.
+ */
+export interface Unit { outcome: Outcome; at: Day; days: Day[] }
+
+/**
+ * The unit a cadence is measured in.
+ *
+ * Two cadence types share one unit: `daily` and `weekdays` both accrue per
+ * Scheduled Day and differ only in which days qualify. `weekly_quota` is the
+ * odd one out, and mixing its weeks into a count of days is the trap R8 exists
+ * to avoid — a 3x/week habit that hit quota every week would report ~43%.
+ */
+export type StatUnit = 'day' | 'week'
+
+export const unitOf = (cadence: CadenceType): StatUnit =>
+  cadence === 'weekly_quota' ? 'week' : 'day'
+
+export interface TimelineSpan {
+  unit: StatUnit
+  cadence: CadenceType
+  units: Unit[]
+}
+
+/**
+ * A Habit's whole history as evaluated units, split by cadence regime.
+ *
+ * Shared by R4 and R8 deliberately. A statistic derived from its own private
+ * notion of an opportunity would be free to disagree with the streak shown
+ * beside it, and two numbers on one card that contradict each other are worse
+ * than either being absent.
+ */
+export function timeline(
+  habit: Habit,
+  schedules: readonly HabitSchedule[],
+  entries: ReadonlyMap<Day, EntryKind>,
+  today: Day,
+): TimelineSpan[] {
+  const completed = new Set<Day>()
+  for (const [day, kind] of entries) if (kind === 'completed') completed.add(day)
+
+  return segments(habit, schedules, today).map(segment => ({
+    unit: unitOf(segment.type),
+    cadence: segment.type,
+    units: segment.type === 'weekly_quota'
+      ? weeklyUnits(segment, entries, completed, today)
+      : dailyUnits(segment, habit, schedules, entries, completed, today),
+  }))
+}
 
 /**
  * R4 · Streaks and gold.
@@ -172,20 +226,13 @@ export function streaks(
   entries: ReadonlyMap<Day, EntryKind>,
   today: Day,
 ): StreakResult {
-  const completed = new Set<Day>()
-  for (const [day, kind] of entries) if (kind === 'completed') completed.add(day)
-
   const gold = new Set<Day>()
   const tier2 = new Set<Day>()
   let longest = 0
   let current = 0
 
-  for (const segment of segments(habit, schedules, today)) {
-    const units = segment.type === 'weekly_quota'
-      ? weeklyUnits(segment, entries, completed, today)
-      : dailyUnits(segment, habit, schedules, entries, completed, today)
-
-    const scale = segment.type === 'weekly_quota' ? THRESHOLD.week : THRESHOLD.day
+  for (const { unit: scaleKey, units } of timeline(habit, schedules, entries, today)) {
+    const scale = THRESHOLD[scaleKey]
     let run: Unit['days'] = []
     let length = 0
 
@@ -238,7 +285,7 @@ function dailyUnits(
       : kind === 'frozen' ? 'freeze'
       : day === today ? 'pending'
       : 'fail'
-    units.push({ outcome, days: kind === 'completed' ? [day] : [] })
+    units.push({ outcome, at: day, days: kind === 'completed' ? [day] : [] })
   }
   return units
 }
@@ -266,7 +313,7 @@ function weeklyUnits(
       : week === currentWeek ? 'pending'
       : frozen ? 'freeze'
       : 'fail'
-    units.push({ outcome, days: outcome === 'complete' ? hits : [] })
+    units.push({ outcome, at: week, days: outcome === 'complete' ? hits : [] })
   }
   return units
 }

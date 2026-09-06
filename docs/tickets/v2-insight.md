@@ -68,7 +68,7 @@ cannot log in from a non-TTY shell, so it needs pasting into the dashboard SQL
 Editor. Until then profile settings still sync; they simply lack the stale-write
 guard, so a device that was offline for a while could overwrite a newer setting.
 
-## V2-2 · R8 — completion rate, trend, streak summary
+## V2-2 · R8 — completion rate, trend, streak summary ✅
 
 `completionRate(habit, window)` = completions ÷ opportunities within the window,
 excluding out-of-range and archived spans from the denominator.
@@ -89,6 +89,36 @@ Two traps:
 **Done when:** unit tests cover both traps, plus a habit whose cadence changed
 mid-window, and a trend that reports "insufficient data" rather than a number
 when the previous window holds too few opportunities to compare against.
+
+**Result:** `src/lib/stats.ts`, documented as R8 in `derivation-rules.md`. 18
+further tests, 95 passing overall.
+
+**R8 reuses R4's units rather than re-deriving opportunities.** `rules.ts` now
+exports `timeline()`, which both consume. This is what makes the unit trap
+structural rather than something the rate has to remember: a weekly-quota habit
+already accrues per ISO week for streak purposes, so the rate cannot count days
+for it by accident. It also means the rate and the streak on one card cannot
+disagree — two contradictory numbers are worse than either being absent.
+
+Both traps and the cadence change are covered, as is the trend refusal. Three
+behaviours fell out of the shared timeline that are worth naming:
+
+- **A partial week at a window edge is dropped, not judged.** A 30-day window
+  opens mid-week; scoring that week would demand a full quota from two days. The
+  cost is that "30 days" may really score 21, which is why the UI must report
+  the unit count rather than the window length.
+- **The current week counts once its quota is met.** A target hit on Wednesday
+  is not still pending on Saturday — R4's rule, inherited rather than restated.
+- **`daily` → `weekdays` is not a unit change.** Both accrue per day, so that
+  history stays whole; only a switch to or from `weekly_quota` splits it.
+
+Thresholds: movement under 5 percentage points reads as steady, and a window
+with fewer than 4 opportunities on either side reports `insufficient`. At three,
+one unit moves the rate 33 points, so a "decline" would mean a single missed
+day.
+
+Streak summary is not here: `streaks()` already returns `current` and `longest`,
+and V2-3 calls it directly rather than having R8 re-wrap it.
 
 ## V2-3 · Statistics UI
 

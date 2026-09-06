@@ -105,3 +105,29 @@ Derived, never stored. Walking months from `start_date`:
 A Freeze may only be applied to a day within the **last 7 days**, and only where `cellState` would otherwise be `missed`.
 
 **Offline overspend.** Two devices offline can each spend the last token. On sync the balance recomputes negative; resolve by keeping the earliest freezes by `updated_at` up to the available balance and reverting the excess to `missed`, then surfacing what happened. This is the one place the LWW model does not fully self-resolve, and it is bounded, rare, and recoverable rather than silent.
+
+## R8 · `habitStats(habit, window) → {rate, trend}`
+
+The statistics rule. v1 made the data trustworthy; v2 draws conclusions from it, which moves the risk from broken numbers to *misleading* ones — a statistic that is quietly wrong is worse than one that is missing, because it gets believed.
+
+Derived from the **same units R4 uses for streaks**, not from a second reading of the entries. A rate with its own private notion of an opportunity would be free to disagree with the streak shown beside it, and two numbers on one card that contradict each other are worse than either being absent.
+
+`rate = hits / opportunities`, where an opportunity is one unit that has resolved:
+
+- `pending` units are excluded from both sides. An unfinished today is not yet a failure.
+- `frozen` units are excluded from both sides. A Freeze is neither a Completion nor a Miss, so counting one in the denominator would push the rate down for something that did not go wrong.
+- `opportunities == 0` → `rate` is **null**, never 0%. No statistic is shown for a habit too new to support one.
+
+**The unit follows the cadence.** `daily` and `weekdays` accrue per Scheduled Day; `weekly_quota` accrues per ISO week, and its rate is quota-meeting weeks ÷ weeks. Counting days for a weekly habit is the headline failure mode: a 3×/week habit that hit quota every single week would report roughly 43%.
+
+**A unit belongs to a window when its anchor does** — the Day itself, or the week's Monday. A week only partly inside the window is therefore dropped rather than judged, since scoring it would demand a full quota from a fraction of a week. The cost is that a 30-day window may really score 21 days' worth of weeks, which is why the UI reports the unit count rather than the window length.
+
+**A cadence change splits history by unit, and only the most recent unit is counted.** Days and weeks are not commensurable, so the older regime is dropped rather than blended — the same reason R4 ends a run when the unit changes. `daily` → `weekdays` is *not* such a change: both accrue per day, so that history stays whole.
+
+**The denominator excludes untracked time.** Opportunities exist only between the Start Date and an Archive, and never in the future — all three fall out of R1 returning `OUT_OF_RANGE`. A habit created five days ago has five opportunities, not ninety. Without this every new habit opens at a demoralising near-zero and any ranking measures nothing but how old each habit is.
+
+### Trend
+
+Compares the window against the one immediately preceding it, of equal length. Reported as a percentage-point change, with movement under **5 points** called steady rather than given a direction.
+
+**It refuses to answer more often than it rounds.** `insufficient` when either window holds fewer than **4** opportunities, and always for the all-time window, which has nothing before it. At three opportunities a single unit moves the rate by 33 points, so "down 33%" would mean "missed one day" — a reading that sends someone chasing a decline that never happened. A habit three weeks old has no month before last, and inventing a direction for it would manufacture the exact signal the user is being asked to act on.
