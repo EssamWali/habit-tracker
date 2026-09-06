@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardFacts, cellPaint, INK } from './shareCard'
+import { cardFacts, cardLayout, cellPaint, INK } from './shareCard'
 import type { CellState } from './rules'
 
 /**
@@ -99,5 +99,52 @@ describe('cardFacts', () => {
   it('says day rather than days for one', () => {
     const facts = cardFacts('day', { current: 1, longest: 1 }, { hits: 1, opportunities: 1, rate: 1 })
     expect(facts).toEqual(['1 day running', 'best 1 day', '1 of 1 day'])
+  })
+})
+
+/**
+ * The layout bug that made the first shipped card unusable.
+ *
+ * Width was taken from the grid alone, and a calendar month is five or six
+ * columns — roughly 70px. The card came out 123px wide: the title truncated to
+ * three letters, the footer read "1 day run…", and the right-aligned date stamp
+ * was placed at a negative x and ran off the left edge.
+ */
+describe('cardLayout', () => {
+  const MONTH_WEEKS = 5      // a calendar month, padded to whole weeks
+  const YEAR_WEEKS = 53
+
+  it('does not let a narrow grid shrink the card', () => {
+    const month = cardLayout(MONTH_WEEKS)
+    expect(month.gridWidth).toBeLessThan(100)          // the grid really is tiny
+    expect(month.contentWidth).toBeGreaterThanOrEqual(330)
+    expect(month.width).toBeGreaterThan(380)
+  })
+
+  it('lets a wide grid drive the width', () => {
+    const year = cardLayout(YEAR_WEEKS)
+    expect(year.contentWidth).toBe(year.gridWidth)
+    expect(year.width).toBeGreaterThan(700)
+  })
+
+  it('centres a grid narrower than the card', () => {
+    const month = cardLayout(MONTH_WEEKS)
+    const leftGap = month.gridX
+    const rightGap = month.width - (month.gridX + month.gridWidth)
+    expect(Math.abs(leftGap - rightGap)).toBeLessThanOrEqual(1)
+  })
+
+  it('does not indent a grid that fills the card', () => {
+    expect(cardLayout(YEAR_WEEKS).gridX).toBe(28)      // the padding, and no more
+  })
+
+  it('keeps the grid seven rows tall whatever the range', () => {
+    expect(cardLayout(MONTH_WEEKS).gridHeight).toBe(cardLayout(YEAR_WEEKS).gridHeight)
+  })
+
+  it('never gives the grid a negative offset', () => {
+    for (const weeks of [1, 2, 5, 13, 27, 53]) {
+      expect(cardLayout(weeks).gridX).toBeGreaterThanOrEqual(28)
+    }
   })
 })

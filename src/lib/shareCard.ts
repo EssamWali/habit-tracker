@@ -67,6 +67,44 @@ const PAD = 28
 const HEADER = 78
 const FOOTER = 58
 
+/**
+ * The narrowest the content area may be.
+ *
+ * Without it the card is exactly as wide as the grid, and a month is only five
+ * or six columns — about 70px. That produced a 123px card in which the title
+ * truncated to three letters, the footer read "1 day run…", and the
+ * right-aligned date stamp was placed at a negative x and ran off the left
+ * edge. The grid is the *smallest* thing the card has to hold, not the thing
+ * that should size it.
+ */
+const MIN_CONTENT = 330
+
+export interface CardLayout {
+  width: number
+  height: number
+  /** Usable width between the paddings — what every label is measured against. */
+  contentWidth: number
+  gridWidth: number
+  gridHeight: number
+  /** Left edge of the grid, centred when the card is wider than it. */
+  gridX: number
+}
+
+export function cardLayout(weekCount: number): CardLayout {
+  const gridWidth = weekCount * STEP - GAP
+  const gridHeight = 7 * STEP - GAP
+  const contentWidth = Math.max(gridWidth, MIN_CONTENT)
+
+  return {
+    width: contentWidth + PAD * 2,
+    height: HEADER + gridHeight + FOOTER + PAD,
+    contentWidth,
+    gridWidth,
+    gridHeight,
+    gridX: PAD + Math.round((contentWidth - gridWidth) / 2),
+  }
+}
+
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
 
 export interface CardInput {
@@ -195,11 +233,7 @@ export function renderCard(input: CardInput, canvas?: HTMLCanvasElement): HTMLCa
     ? buildMonthGrid(today)
     : buildGrid(today, RANGE_DAYS[range])
 
-  const gridWidth = weeks.length * STEP - GAP
-  const gridHeight = 7 * STEP - GAP
-
-  const width = gridWidth + PAD * 2
-  const height = HEADER + gridHeight + FOOTER + PAD
+  const { width, height, contentWidth, gridHeight, gridX } = cardLayout(weeks.length)
 
   const scale = Math.max(2, Math.ceil(window.devicePixelRatio || 1))
   const el = canvas ?? document.createElement('canvas')
@@ -223,7 +257,7 @@ export function renderCard(input: CardInput, canvas?: HTMLCanvasElement): HTMLCa
 
   c.fillStyle = ink.fg
   c.font = `600 19px ${FONT}`
-  c.fillText(fit(c, habit.name, gridWidth - 22), PAD + 18, PAD + 8)
+  c.fillText(fit(c, habit.name, contentWidth - 22), PAD + 18, PAD + 8)
 
   c.fillStyle = ink.muted
   c.font = `13px ${FONT}`
@@ -240,7 +274,7 @@ export function renderCard(input: CardInput, canvas?: HTMLCanvasElement): HTMLCa
     week.forEach((day, row) => {
       const state = cellState(habit, schedules, day, today, entries, completed)
       const paint = cellPaint(state, hue, state === 'completed' && gold.has(day), tier2.has(day), ink)
-      drawCell(c, PAD + col * STEP, top + row * STEP, paint)
+      drawCell(c, gridX + col * STEP, top + row * STEP, paint)
     })
   })
 
@@ -259,12 +293,15 @@ export function renderCard(input: CardInput, canvas?: HTMLCanvasElement): HTMLCa
 
   c.fillStyle = ink.muted
   c.font = `13px ${FONT}`
-  c.fillText(fit(c, facts.join('  ·  ') || 'Just getting started', gridWidth), PAD, footerY + 6)
+  c.fillText(fit(c, facts.join('  ·  ') || 'Just getting started', contentWidth), PAD, footerY + 6)
 
   c.fillStyle = ink.line
   c.font = `11px ${FONT}`
   const stamp = parseDay(today).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-  const label = `Habit Tracker · ${stamp}`
+  // Trimmed before it is placed. Right-aligning a label wider than the card
+  // gives it a negative x, which ran the text off the left edge rather than
+  // clipping it on the right.
+  const label = fit(c, `Habit Tracker · ${stamp}`, contentWidth)
   c.fillText(label, width - PAD - c.measureText(label).width, footerY + 26)
 
   return el
