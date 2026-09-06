@@ -14,6 +14,7 @@ import HabitEditor from './HabitEditor'
 import AggregateHeatmap from './AggregateHeatmap'
 import DayDetail from './DayDetail'
 import Stats from './Stats'
+import ShareCard from './ShareCard'
 
 function syncLabel(status: ReturnType<typeof useSync>['status']): string {
   switch (status.state) {
@@ -79,6 +80,7 @@ export default function HabitList({
   const [name, setName] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [picked, setPicked] = useState<{ habitId: string; day: string } | null>(null)
+  const [sharing, setSharing] = useState<string | null>(null)
   const [range, setRange] = useState<Range>(() => {
     try { const v = localStorage.getItem('range'); if (v === 'month' || v === 'quarter' || v === 'year') return v } catch { /* blocked */ }
     return 'month'
@@ -150,6 +152,11 @@ export default function HabitList({
                 </button>
                 {h.archived_at && <span className="badge">archived</span>}
                 <button
+                  className="linkish share-link"
+                  aria-label={`Share ${h.name} as an image`}
+                  onClick={() => setSharing(h.id)}
+                >Share</button>
+                <button
                   className="grip"
                   aria-label={`Reorder ${h.name}. Drag, or use the arrow keys.`}
                   onPointerDown={e => drag.start(e, h.id)}
@@ -197,6 +204,21 @@ export default function HabitList({
         />
         <button className="btn" type="submit" disabled={!name.trim()}>Add</button>
       </form>
+
+      {sharing && (() => {
+        const h = habits.find(x => x.id === sharing)
+        if (!h) return null
+        return (
+          <ShareCard
+            habit={h}
+            schedules={schedules}
+            entries={entriesByHabit.get(h.id) ?? new Map<string, EntryKind>()}
+            today={day}
+            resolvedTheme={resolved}
+            onClose={() => setSharing(null)}
+          />
+        )
+      })()}
 
       {picked && (() => {
         const h = habits.find(x => x.id === picked.habitId)

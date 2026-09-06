@@ -325,6 +325,16 @@ body {
 }
 .notice p { margin: 0 0 6px; }
 
+/* Share card (v4) */
+.share-link { flex: none; font-size: 0.6875rem; }
+.share-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 12px; }
+.share-preview {
+  overflow-x: auto; border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px; background: var(--bg);
+}
+.share-preview canvas { display: block; max-width: 100%; height: auto; }
+.sheet--wide { max-width: min(760px, 94vw); }
+
 /* Freezes (V3-4) */
 .sheet-freeze { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
 .sheet-freeze .btn { width: auto; }

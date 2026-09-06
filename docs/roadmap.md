@@ -9,7 +9,7 @@ verifiable rather than something demoable.
 | **v1** | The core loop: cadence, palette, both heatmaps, streaks, backfill | ✅ complete |
 | **v2** | Insight: statistics, trend, notes, export, reminders | ✅ complete — reminders need the setup in `reminders-setup.md` before they send |
 | **v3** | Motivation: Freeze Tokens and Flawless Months | ✅ complete — Weight tiers shipped early, in V1-4 |
-| **v4** | Polish: canvas-rendered share PNG | next |
+| **v4** | Polish: canvas-rendered share PNG | ✅ complete |
 
 ## Deliberately excluded
 
