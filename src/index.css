@@ -326,7 +326,20 @@ body {
 .notice p { margin: 0 0 6px; }
 
 /* Share card (v4) */
-.share-link { flex: none; font-size: 0.6875rem; }
+/* A real control, not a link. This started as 11px underlined muted text
+   between a habit name and the drag handle, which made the entry point to the
+   whole share feature the faintest thing in the row -- it was reported as
+   missing rather than as hard to see. It now matches the grip beside it: same
+   height, same border, same weight. */
+.chip {
+  flex: none; height: 28px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: transparent; color: var(--muted);
+  font: inherit; font-size: 0.6875rem; line-height: 1;
+  cursor: pointer;
+}
+.chip:hover { color: var(--fg); border-color: var(--fg); }
+.chip:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 .share-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 12px; }
 .share-preview {
   overflow-x: auto; border: 1px solid var(--line); border-radius: 8px;

@@ -152,7 +152,7 @@ export default function HabitList({
                 </button>
                 {h.archived_at && <span className="badge">archived</span>}
                 <button
-                  className="linkish share-link"
+                  className="chip"
                   aria-label={`Share ${h.name} as an image`}
                   onClick={() => setSharing(h.id)}
                 >Share</button>
