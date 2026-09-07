@@ -7,6 +7,14 @@ network and syncs when there is one.
 Live at **[habit-tracker-gilt-two.vercel.app](https://habit-tracker-gilt-two.vercel.app)**.
 Single-user: sign-ups are closed.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/habits-year-dark.png">
+  <img alt="Six habits over a year, each a heatmap in its own colour, with the weighted aggregate heatmap above them" src="docs/img/habits-year-light.png">
+</picture>
+
+<sub>Every screenshot here is rendered from synthetic data by
+<code>scripts/screenshots.mjs</code>, and follows your GitHub theme.</sub>
+
 ## What it does
 
 - **A heatmap per habit**, in a chosen colour from a curated palette, over a
@@ -22,6 +30,47 @@ Single-user: sign-ups are closed.
   you missed. Unused ones carry over only after a flawless month, up to three.
 - **Notes** on a completion, **export and import**, a **daily reminder**, and a
   **shareable PNG**.
+
+### Statistics
+
+Ranked by what wants attention first. The trend compares this window with the
+one before it; weekly-quota habits are scored in whole weeks.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/stats-dark.png">
+  <img alt="Statistics card: each habit with completion rate, streak, best streak, freezes and flawless months, ranked with the slipping one first" src="docs/img/stats-light.png">
+</picture>
+
+### On a phone
+
+It is installable as a PWA and designed for a thumb. A tap on today toggles
+it; a tap on any other day opens that day, with its note and the option to
+spend a Freeze.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/img/habits-quarter-phone-dark.png">
+        <img alt="The quarter view at phone width" src="docs/img/habits-quarter-phone-light.png">
+      </picture>
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/img/day-detail-dark.png">
+        <img alt="A day's detail sheet with its note" src="docs/img/day-detail-light.png">
+      </picture>
+      <br><br>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/img/share-card-dark.png">
+        <img alt="The share sheet, previewing a year heatmap as a PNG" src="docs/img/share-card-light.png">
+      </picture>
+    </td>
+  </tr>
+</table>
+
+The share card is a canvas render you download. Nothing is uploaded and there
+are no public links, by decision (see the roadmap).
 
 ## Running it
 
