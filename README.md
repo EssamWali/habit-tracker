@@ -55,7 +55,7 @@ Then check what is live is what you built — compare the bundle hash in
 curl -s https://habit-tracker-gilt-two.vercel.app/ | grep -o 'assets/index-[^"]*\.js'
 ```
 
-Use the `gilt-two` alias. The `habit-tracker-<team>` one is behind Vercel's SSO
+Use the `gilt-two` alias. The team-named alias is behind Vercel's SSO
 and will ask for a login.
 
 Migrations are not deployed by any of this, and the order matters: a client that

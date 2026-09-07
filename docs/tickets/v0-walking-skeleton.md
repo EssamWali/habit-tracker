@@ -16,7 +16,7 @@ Deploy to Vercel as part of this ticket, not later: Android will not register a 
 
 - Production URL: **https://habit-tracker-gilt-two.vercel.app**
 - Vercel project: `<team>/habit-tracker`
-- Note: the `habit-tracker-<team>.vercel.app` alias is gated by Deployment Protection and 302s to SSO. Use the `habit-tracker-gilt-two.vercel.app` alias for device testing.
+- Note: the team-named `habit-tracker-<team>.vercel.app` alias is gated by Deployment Protection and 302s to SSO. Use the `habit-tracker-gilt-two.vercel.app` alias for device testing.
 
 **Done when:** the app installs to an Android home screen from the production URL and opens with no network.
 
