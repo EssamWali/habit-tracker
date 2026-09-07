@@ -1,8 +1,8 @@
 // Daily reminder sender (V2-6).
 //
 // Deliberately thin. Every decision about *who* is due lives in SQL, in
-// migration 0004, so it is versioned and inspectable with a plain SELECT. This
-// function's only job is to turn rows into pushes.
+// migrations 0004 and 0005, so it is versioned and inspectable with a plain
+// SELECT. This function's only job is to turn rows into pushes.
 //
 // It holds no notion of a Scheduled Day, a cadence or a quota. The client
 // writes profiles.last_clear_day using the same R5 that draws the aggregate

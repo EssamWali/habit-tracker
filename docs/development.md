@@ -32,6 +32,7 @@ hand through the dashboard's SQL Editor, in order:
 | `0002_synced_at.sql` | `synced_at` cursor column for incremental pull |
 | `0003_profiles_sync.sql` | Profiles included in sync |
 | `0004_reminders.sql` | Reminder columns and `due_reminders()` |
+| `0005_reminder_requires_a_habit.sql` | `due_reminders()` skips accounts with no live Habit |
 
 Migrations are not deployed by anything else, and the order relative to a
 client release matters: a client that writes a column the database does not

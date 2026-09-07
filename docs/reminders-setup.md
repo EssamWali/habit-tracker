@@ -34,14 +34,17 @@ console.log('private', (await webcrypto.subtle.exportKey('jwk', kp.privateKey)).
 Rotating the keypair invalidates every existing subscription: each device has to
 turn the reminder off and on again to re-subscribe.
 
-## 2 · Apply migration 0004
+## 2 · Apply the migrations
 
-Dashboard → SQL Editor → paste `supabase/migrations/0004_reminders.sql` → Run.
+Dashboard → SQL Editor → paste `supabase/migrations/0004_reminders.sql` → Run,
+then do the same with `0005_reminder_requires_a_habit.sql`.
 
-It adds `profiles.timezone` and `profiles.last_clear_day`, creates
+0004 adds `profiles.timezone` and `profiles.last_clear_day`, creates
 `push_subscriptions` and `reminder_state`, and defines the three functions the
-sender calls. `due_reminders()` holds all of the timing logic, so it can be
-inspected directly:
+sender calls. 0005 redefines `due_reminders()` so an account with no Habits is
+never due — see *How suppression actually works* below for why that cannot be
+left to the client. `due_reminders()` holds all of the timing logic, so it can
+be inspected directly:
 
 ```sql
 select * from public.due_reminders();
@@ -159,6 +162,16 @@ heatmap, and writes the conclusion to `profiles.last_clear_day`.
 The cost is that the answer is only as fresh as the last time the app was open
 and syncing. That failure mode points the right way: someone who has not opened
 the app today leaves a stale value and gets their reminder.
+
+**Except on an empty account** (0005). Someone with no Habits has no reason to
+open the app again, so their stamp stays frozen on the day they deleted the last
+one and every day after it is due a reminder about nothing. The staleness
+fallback fails open and the user cannot close it. So `due_reminders()` asks one
+question of its own: does this user have a Habit that is live on their local Day
+— not deleted, not archived, already started? Those are R1's three range
+boundaries and nothing else. It is a plain column comparison that cannot answer
+"is today complete?", which is exactly why it cannot drift from the client's
+answer to that question.
 
 ## Things worth knowing
 

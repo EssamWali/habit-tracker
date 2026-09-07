@@ -19,6 +19,11 @@ import type { Day, EntryKind, Habit, HabitSchedule, Profile } from './types'
  * The cost is that the answer is only as fresh as the last time the app was
  * open and syncing. That failure mode points the right way: a user who has not
  * opened the app today leaves a stale value and gets their reminder.
+ *
+ * It points the wrong way for an account with no Habits, which has no reason to
+ * be opened again and would be nudged about nothing forever. Nothing here can
+ * fix that — the stamp is only ever written by a running client — so the job
+ * refuses those users itself, in migration 0005.
  */
 export function nothingOutstanding(
   habits: readonly Habit[],
