@@ -100,7 +100,7 @@ The download itself — same blob-and-anchor path as the V2-5 export, since it i
 the same problem — plus the project's closing pass.
 
 A README: what this is, how to run it, where the design lives. The repo has
-`CONTEXT.md`, four ADRs, the rules, the data model, four ticket files and a
+`docs/CONTEXT.md`, four ADRs, the rules, the data model, four ticket files and a
 runbook, and no front door to any of it.
 
 **Done when:** a PNG lands in the downloads folder from a phone and from a

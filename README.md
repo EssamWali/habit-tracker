@@ -1,8 +1,10 @@
 # Habit Tracker
 
-Habits as GitHub-style heatmaps. One per habit, plus an aggregate that shades by
-how much of the day you actually got through. Local-first, so it works with no
-network and syncs when there is one.
+A personal habit tracker that draws each habit as a GitHub-style contribution
+heatmap, plus an aggregate heatmap shaded by how much of the day's expected work
+was done. It is local-first: every read comes from an IndexedDB mirror, so the
+app works with no network and syncs to Supabase when there is one. It installs
+as a PWA.
 
 Live at **[habit-tracker-gilt-two.vercel.app](https://habit-tracker-gilt-two.vercel.app)**.
 Single-user: sign-ups are closed.
@@ -15,17 +17,17 @@ Single-user: sign-ups are closed.
 <sub>Every screenshot here is rendered from synthetic data by
 <code>scripts/screenshots.mjs</code>, and follows your GitHub theme.</sub>
 
-## What it does
+## Features
 
 - **A heatmap per habit**, in a chosen colour from a curated palette, over a
   month, quarter or year.
-- **An aggregate heatmap** weighted by how much each habit counts — a day with
+- **An aggregate heatmap** weighted by how much each habit counts: a day with
   an Unskippable habit done reads stronger than one with a Minor habit done.
 - **Cadences**: every day, chosen weekdays, or *N* times a week.
 - **Streaks**, with a gold mark once a run reaches seven (or four quota-meeting
   weeks), and a second tier beyond that.
 - **Statistics**: completion rate and trend over 7 / 30 / 90 days or all time,
-  ranked so a habit that is slipping surfaces without hunting for it.
+  ranked so a habit that is slipping surfaces first.
 - **Freeze Tokens**: one a month, spendable to keep a streak alive across a day
   you missed. Unused ones carry over only after a flawless month, up to three.
 - **Notes** on a completion, **export and import**, a **daily reminder**, and a
@@ -33,8 +35,8 @@ Single-user: sign-ups are closed.
 
 ### Statistics
 
-Ranked by what wants attention first. The trend compares this window with the
-one before it; weekly-quota habits are scored in whole weeks.
+The trend compares this window with the one before it; weekly-quota habits are
+scored in whole weeks.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/stats-dark.png">
@@ -43,9 +45,8 @@ one before it; weekly-quota habits are scored in whole weeks.
 
 ### On a phone
 
-It is installable as a PWA and designed for a thumb. A tap on today toggles
-it; a tap on any other day opens that day, with its note and the option to
-spend a Freeze.
+A tap on today toggles it; a tap on any other day opens that day, with its note
+and the option to spend a Freeze.
 
 <table>
   <tr>
@@ -69,8 +70,43 @@ spend a Freeze.
   </tr>
 </table>
 
-The share card is a canvas render you download. Nothing is uploaded and there
-are no public links, by decision (see the roadmap).
+The share card is a canvas render downloaded as a PNG. Nothing is uploaded and
+there are no public links.
+
+## How it works
+
+Vite, React and TypeScript on the client; Postgres, auth and one Edge Function on Supabase.
+
+**Local mirror and outbox.** Dexie over IndexedDB holds a full copy of the
+user's rows. Every read in the UI goes to the mirror, never to the network. A
+write lands in the mirror and in an outbox table in one transaction, so the UI
+updates immediately. A background loop pushes the outbox and pulls rows changed
+since each table's cursor, with exponential backoff on failure and an immediate
+retry when the tab regains connectivity or focus.
+
+**Last-write-wins per row.** Every row carries a client-set `updated_at`; a
+`lww_guard` trigger on the server rejects older writes, and the client applies
+the same comparison on pull. This works because a completion is set membership
+on `(habit, day)`, a single row with a compound key, rather than a document that
+would need merging. [ADR 0002](docs/adr/0002-local-first-last-write-wins-sync.md)
+
+**Dates are plain dates.** A completion is `2026-09-05`, never a timestamp. A
+day starts at a configurable hour (04:00 by default), so a late night lands on
+the day it belongs to. [ADR 0003](docs/adr/0003-completions-are-plain-local-dates.md)
+
+**Schedules are effective-dated.** Changing a cadence or weight writes a new
+schedule row rather than editing the old one, so history is always judged
+against the schedule in force at the time. [ADR 0004](docs/adr/0004-effective-dated-cadence-and-weight.md)
+
+**The client owns the rules.** Streaks, rates, freeze balances, flawless months
+and aggregate intensity are pure functions of rows (`src/lib/rules.ts`,
+`src/lib/stats.ts`), computed on every read and never cached. The server has no
+copy of these rules: the reminder function only compares dates against a
+`last_clear_day` the client has already written.
+
+**Row-level security is the boundary.** The anon key is public; per-table RLS
+policies restrict every operation to the owning user, and `scripts/rls-isolation-test.mjs`
+asserts that one account cannot reach another's rows.
 
 ## Running it
 
@@ -80,78 +116,32 @@ cp .env.example .env.local     # fill in from Supabase → Project Settings → 
 npm run dev
 ```
 
-```sh
-npm test          # 185 tests, no network or browser needed
-npm run build     # typecheck, bundle, and generate the service worker
-```
+`npm test` runs 191 vitest tests with no network or browser; `npm run build`
+typechecks, bundles and generates the service worker. Migrations, deployment
+and the RLS check are in [docs/development.md](docs/development.md).
 
-Postgres lives on Supabase. Migrations in `supabase/migrations/` are applied by
-hand through the dashboard's SQL Editor, in order.
+## Layout
 
-## Deploying
+| Path | Contents |
+|---|---|
+| `src/lib/rules.ts`, `src/lib/stats.ts` | The derivation rules R0–R8 and the statistics built on them |
+| `src/lib/db.ts`, `src/lib/store.ts` | The Dexie mirror and every write path (mirror + outbox) |
+| `src/lib/sync.ts`, `src/lib/useSync.ts` | Push, pull and the background loop |
+| `src/*.tsx` | The UI: heatmaps, editor, day detail, stats, share card, settings |
+| `supabase/migrations/` | Schema, RLS policies and the `lww_guard` trigger |
+| `supabase/functions/daily-reminder/` | The reminder sender |
+| `scripts/` | RLS isolation test and the screenshot renderer |
 
-**Pushing does not deploy.** The Vercel–GitHub connection was never completed,
-so a release is a manual step:
-
-```sh
-npx vercel --yes --prod
-```
-
-Then check what is live is what you built — compare the bundle hash in
-`dist/assets/` against the deployed page:
-
-```sh
-curl -s https://habit-tracker-gilt-two.vercel.app/ | grep -o 'assets/index-[^"]*\.js'
-```
-
-Use the `gilt-two` alias. The team-named alias is behind Vercel's SSO
-and will ask for a login.
-
-Migrations are not deployed by any of this, and the order matters: a client that
-writes a column the database does not have yet will fail *every* push, not just
-that one, because a rejected batch aborts the whole sync cycle. Apply the
-migration first, then deploy.
-
-## Where the design lives
-
-The reasoning is written down rather than remembered, and most of it predates
-the code:
+## Design docs
 
 | | |
 |---|---|
-| [`CONTEXT.md`](CONTEXT.md) | The glossary. 23 terms with the words to avoid for each — read this first, it is what the rest is written in. |
-| [`docs/derivation-rules.md`](docs/derivation-rules.md) | R0–R8. Every derived value, as a pure function of rows. Opens with a contradiction found during design and how it was resolved. |
-| [`docs/data-model.md`](docs/data-model.md) | Four tables, and why each column is the type it is. |
-| [`docs/adr/`](docs/adr/) | Four decisions with their consequences: Supabase, last-write-wins sync, dates as plain dates, and effective-dated schedules. |
-| [`docs/roadmap.md`](docs/roadmap.md) | v0 through v4, and what was deliberately left out. |
-| [`docs/tickets/`](docs/tickets/) | Every ticket, each with a **Result** recording what was actually built and what went wrong. |
-| [`docs/reminders-setup.md`](docs/reminders-setup.md) | The runbook for switching push reminders on. |
+| [`docs/CONTEXT.md`](docs/CONTEXT.md) | The glossary: 23 terms, each with the words to avoid. The rest of the docs are written in it. |
+| [`docs/derivation-rules.md`](docs/derivation-rules.md) | R0–R8: every derived value as a pure function of rows. |
+| [`docs/data-model.md`](docs/data-model.md) | The four tables and the type of each column. |
+| [`docs/adr/`](docs/adr/) | Four decisions: Supabase, last-write-wins sync, dates as plain dates, effective-dated schedules. |
+| [`docs/roadmap.md`](docs/roadmap.md) | v0 through v4, and what was left out. |
+| [`docs/tickets/`](docs/tickets/) | Every ticket, each with a Result recording what was built. |
+| [`docs/reminders-setup.md`](docs/reminders-setup.md) | Switching push reminders on. |
 
-Four ideas carry most of the weight:
-
-- **Dates are plain dates.** A completion is `2026-09-05`, never a timestamp.
-  A "day" starts at a configurable hour (04:00 by default), so a late night
-  lands where you would expect. [ADR 0003](docs/adr/0003-completions-are-plain-local-dates.md)
-- **Schedules are effective-dated.** Changing a cadence writes a new row rather
-  than editing the old one, so loosening a habit today cannot launder last
-  month. [ADR 0004](docs/adr/0004-effective-dated-cadence-and-weight.md)
-- **The client owns the rules.** Nothing on the server knows what a Scheduled
-  Day is — even the reminder's "already finished today?" check is answered by
-  the client and written down as a date for the server to compare.
-- **Everything derived is derived.** Streaks, rates, freeze balances and flawless
-  months are computed from the entries on every read. Nothing is cached, so
-  nothing can be stale.
-
-## How it is built
-
-Vite, React, TypeScript. Dexie over IndexedDB as a full local mirror; every read
-in the UI goes there and never to the network. Writes land in the mirror and an
-outbox in one transaction, and a background loop pushes them. Conflicts resolve
-last-write-wins per row, which is only safe because a completion is set
-membership on `(habit, day)` rather than a document to merge — a constraint
-[ADR 0002](docs/adr/0002-local-first-last-write-wins-sync.md) spells out, along
-with what would have to be reconsidered to break it.
-
-Row-level security is the security boundary. The anon key is public by design.
-`scripts/rls-isolation-test.mjs` checks that one account cannot reach another's
-rows.
+More: [development](docs/development.md) covers running, migrations, deployment and the RLS check.
