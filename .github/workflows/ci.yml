@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      # The rule layer (streaks, freeze tokens, statistics) runs against
+      # fake-indexeddb, so the suite needs neither a browser nor Supabase.
+      - name: Tests
+        run: npm test
+      # A production build needs the two public Supabase values at build time.
+      # Placeholders are enough to prove the bundle compiles; deploys stay manual
+      # (see docs/development.md) and use the real ones.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder
